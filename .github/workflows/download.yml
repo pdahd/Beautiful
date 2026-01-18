@@ -1,0 +1,51 @@
+name: Video Download with N_m3u8DL-RE
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: '输入 m3u8 链接或支持的网页 URL'
+        required: true
+        default: ''
+      file_name:
+        description: '保存的文件名 (不含后缀)'
+        required: true
+        default: 'apple_trailer'
+
+jobs:
+  download-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Download N_m3u8DL-RE
+        run: |
+          # 获取最新 Linux x64 版本二进制文件
+          # 这里以 0.2.1-beta 为例，建议根据实际情况更新链接
+          wget https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.2.1-beta/N_m3u8DL-RE_v0.2.1-beta_linux-x64_20230628.tar.gz
+          tar -zxvf N_m3u8DL-RE_v0.2.1-beta_linux-x64_20230628.tar.gz
+          # 移动并赋予执行权限
+          mv N_m3u8DL-RE_v0.2.1-beta_linux-x64/N_m3u8DL-RE ./n_m3u8
+          chmod +x ./n_m3u8
+
+      - name: Execute Download
+        run: |
+          # 使用 --save-name 指定文件名，--auto-select 自动选择最高画质
+          ./n_m3u8 "${{ github.event.inputs.video_url }}" --save-name "${{ github.event.inputs.file_name }}" --auto-select-true
+
+      - name: Upload Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.file_name }}
+          path: |
+             *.mp4
+             *.mkv
+             *.mov
+          retention-days: 1
