@@ -4,15 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: '粘贴刚才抓到的 playlist.m3u8 完整链接'
+        description: '请填入抓取到的 .m3u8 链接 (不要直接填网页链接)'
         required: true
       file_name:
-        description: '保存的文件名'
+        description: '保存的文件名 (不含后缀)'
         required: true
-        default: 'apple_trailer_4k'
-      custom_headers:
-        description: '可选：如果报错403，请填入关键Header(如 Cookie 或 User-Agent)'
-        required: false
+        default: 'apple_trailer'
 
 jobs:
   download-job:
@@ -29,7 +26,9 @@ jobs:
 
       - name: Download Latest N_m3u8DL-RE
         run: |
-          URL=$(curl -s https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest | grep "browser_download_url.*linux-x64.*gz" | cut -d '"' -f 4)
+          URL=$(curl -s https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest \
+            | grep "browser_download_url.*linux-x64.*gz" \
+            | cut -d '"' -f 4)
           wget -O n_m3u8_latest.tar.gz "$URL"
           mkdir temp_bin
           tar -zxvf n_m3u8_latest.tar.gz -C temp_bin
@@ -38,16 +37,12 @@ jobs:
 
       - name: Execute Download
         run: |
-          # 如果输入了 headers，则通过 -H 参数传递
-          HEADER_ARG=""
-          if [ -n "${{ github.event.inputs.custom_headers }}" ]; then
-            HEADER_ARG="-H \"${{ github.event.inputs.custom_headers }}\""
-          fi
-          
+          # 修正后的命令：
+          # 1. 使用 --auto-select
+          # 2. 添加 -M format=mp4 自动合并为 MP4
           ./n_m3u8 "${{ github.event.inputs.video_url }}" \
             --save-name "${{ github.event.inputs.file_name }}" \
             --auto-select \
-            $HEADER_ARG \
             -M format=mp4
 
       - name: Upload Result
