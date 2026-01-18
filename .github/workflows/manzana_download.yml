@@ -1,4 +1,4 @@
-name: Apple Trailer Download with Manzana (Fixed)
+name: Apple Trailer Manzana Pro
 
 on:
   workflow_dispatch:
@@ -6,13 +6,18 @@ on:
       video_url:
         description: '粘贴 Apple TV+ 网页 URL'
         required: true
-      quality:
+      mode:
         type: choice
-        description: '选择画质类型'
+        description: '选择下载预设'
         options:
-          - '4K (DoVi/HDR)'
-          - '1080p (SDR)'
-        default: '4K (DoVi/HDR)'
+          - '4K_HDR_Best'
+          - '1080p_SDR_Best'
+          - 'Custom_IDs'
+        default: '4K_HDR_Best'
+      custom_sequence:
+        description: '如果选了 Custom_IDs，请填入序列（如 0\n13\nall\nall\nall\nall\n）'
+        required: false
+        default: ''
 
 jobs:
   manzana-job:
@@ -38,28 +43,30 @@ jobs:
           cd Manzana-Apple-TV-Plus-Trailers
           pip install -r requirements.txt
 
-      - name: Execute Manzana (Automated Input)
+      - name: Execute Manzana
         run: |
           cd Manzana-Apple-TV-Plus-Trailers
           
-          # 模拟交互输入逻辑：
-          # 第一次输入：选择 Codec ID (0为DoVi, 1为SDR)
-          # 第二次输入：选择 分辨率 ID (通常0为最高)
-          # 第三次输入：选择 音频 (all 代表全部下载)
-          # 第四次输入：选择 字幕 (all 代表全部下载)
+          # 定义不同的输入序列 (6次输入: Range -> Stream -> AudioCodec -> AudioStream -> SubType -> SubStream)
           
-          if [ "${{ github.event.inputs.quality }}" == "4K (DoVi/HDR)" ]; then
-            # 顺序：Codec(0) -> Resolution(0) -> Audio(all) -> Subs(all)
-            printf "0\n0\nall\nall\n" | python manzana.py "${{ github.event.inputs.video_url }}" -d
+          if [ "${{ github.event.inputs.mode }}" == "4K_HDR_Best" ]; then
+            # 0:HDR -> 13:最高码率4K -> all:所有音频编码 -> all:所有音轨 -> all:所有字幕类型 -> all:所有字幕
+            INPUT_SEQ="0\n13\nall\nall\nall\nall\n"
+          elif [ "${{ github.event.inputs.mode }}" == "1080p_SDR_Best" ]; then
+            # 1:SDR -> 11:最高码率1080p -> all -> all -> all -> all
+            INPUT_SEQ="1\n11\nall\nall\nall\nall\n"
           else
-            # 顺序：Codec(1:SDR) -> Resolution(0) -> Audio(all) -> Subs(all)
-            printf "1\n0\nall\nall\n" | python manzana.py "${{ github.event.inputs.video_url }}" -d
+            # 用户自定义模式
+            INPUT_SEQ="${{ github.event.inputs.custom_sequence }}"
           fi
+
+          echo "正在执行下载，使用序列: $INPUT_SEQ"
+          printf "$INPUT_SEQ" | python manzana.py "${{ github.event.inputs.video_url }}" -d
 
       - name: Upload Result
         uses: actions/upload-artifact@v4
         with:
-          name: Apple_Trailers_Manzana
+          name: Apple_Video_Result
           path: |
              Manzana-Apple-TV-Plus-Trailers/*.mp4
              Manzana-Apple-TV-Plus-Trailers/*.mkv
