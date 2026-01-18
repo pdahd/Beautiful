@@ -4,12 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: '输入 m3u8 链接或支持的网页 URL'
+        description: '粘贴刚才抓到的 playlist.m3u8 完整链接'
         required: true
       file_name:
-        description: '保存的文件名 (不含后缀)'
+        description: '保存的文件名'
         required: true
-        default: 'apple_trailer'
+        default: 'apple_trailer_4k'
+      custom_headers:
+        description: '可选：如果报错403，请填入关键Header(如 Cookie 或 User-Agent)'
+        required: false
 
 jobs:
   download-job:
@@ -26,31 +29,26 @@ jobs:
 
       - name: Download Latest N_m3u8DL-RE
         run: |
-          # 使用 GitHub API 获取最新 Release 的下载链接
-          # 这样可以避免因作者更新版本号或日期导致的 404
-          URL=$(curl -s https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest \
-            | grep "browser_download_url.*linux-x64.*gz" \
-            | cut -d '"' -f 4)
-          
-          echo "正在从 $URL 下载..."
+          URL=$(curl -s https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest | grep "browser_download_url.*linux-x64.*gz" | cut -d '"' -f 4)
           wget -O n_m3u8_latest.tar.gz "$URL"
-          
-          # 解压。注意：解压出来的文件夹名称可能随版本变化
-          # 我们直接寻找解压后名为 N_m3u8DL-RE 的可执行文件
           mkdir temp_bin
           tar -zxvf n_m3u8_latest.tar.gz -C temp_bin
-          
-          # 递归找到二进制文件并移动到当前目录，改名为 n_m3u8
           find temp_bin -type f -name "N_m3u8DL-RE" -exec mv {} ./n_m3u8 \;
           chmod +x ./n_m3u8
-          
-          # 打印版本号确认成功
-          ./n_m3u8 --version
 
       - name: Execute Download
         run: |
-          # 执行下载
-          ./n_m3u8 "${{ github.event.inputs.video_url }}" --save-name "${{ github.event.inputs.file_name }}" --auto-select-true
+          # 如果输入了 headers，则通过 -H 参数传递
+          HEADER_ARG=""
+          if [ -n "${{ github.event.inputs.custom_headers }}" ]; then
+            HEADER_ARG="-H \"${{ github.event.inputs.custom_headers }}\""
+          fi
+          
+          ./n_m3u8 "${{ github.event.inputs.video_url }}" \
+            --save-name "${{ github.event.inputs.file_name }}" \
+            --auto-select \
+            $HEADER_ARG \
+            -M format=mp4
 
       - name: Upload Result
         uses: actions/upload-artifact@v4
@@ -59,5 +57,4 @@ jobs:
           path: |
              *.mp4
              *.mkv
-             *.mov
           retention-days: 1
