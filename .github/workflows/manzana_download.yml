@@ -1,4 +1,4 @@
-name: Apple Trailer Manzana Pro (Final)
+name: Apple Trailer Manzana (v2.0-Pathfinder)
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ on:
           - 'Custom_IDs'
         default: '4K_HDR_Best'
       custom_sequence:
-        description: '如果选了 Custom_IDs，请填入序列'
+        description: '若选 Custom_IDs，请填入序列 (如 0\n13\nall\nall\nall\nall\n)'
         required: false
         default: ''
 
@@ -24,30 +24,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: v2.0-Checkout
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: v2.0-Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg gpac
 
-      - name: Set up Python
+      - name: v2.0-Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Clone and Install
+      - name: v2.0-Clone and Install
         run: |
           git clone https://github.com/dropcreations/Manzana-Apple-TV-Plus-Trailers.git
           cd Manzana-Apple-TV-Plus-Trailers
           pip install -r requirements.txt
 
-      - name: Execute Manzana
+      - name: v2.0-Execute Manzana (Clean Logs)
         run: |
           cd Manzana-Apple-TV-Plus-Trailers
           
-          # 定义输入序列
+          # 定义输入序列：Range -> Stream -> AudioCodec -> AudioStream -> SubType -> SubStream
           if [ "${{ github.event.inputs.mode }}" == "4K_HDR_Best" ]; then
             INPUT_SEQ="0\n13\nall\nall\nall\nall\n"
           elif [ "${{ github.event.inputs.mode }}" == "1080p_SDR_Best" ]; then
@@ -56,21 +56,29 @@ jobs:
             INPUT_SEQ="${{ github.event.inputs.custom_sequence }}"
           fi
 
-          # 这里的 -d 参数让它自动选择 trailer
-          printf "$INPUT_SEQ" | python manzana.py "${{ github.event.inputs.video_url }}" -d
+          echo "启动下载，输入序列为: $INPUT_SEQ"
+          # 使用 grep 过滤冗余的 Fetching 详情，保留进度条
+          printf "$INPUT_SEQ" | python manzana.py "${{ github.event.inputs.video_url }}" -d | grep -v "Fetching segments"
 
-      - name: Organize Files
+      - name: v2.0-Organize Files (Global Search)
         if: always()
         run: |
-          # 创建一个统一的输出文件夹，把 Downloads 里的文件移出来
           mkdir -p output
-          find Manzana-Apple-TV-Plus-Trailers/Downloads -type f \( -name "*.mp4" -o -name "*.mkv" \) -exec mv {} ./output/ \;
-          echo "已移动以下文件到 output 目录："
-          ls -R ./output
+          echo "正在全盘搜索生成的视频文件..."
+          # 查找所有视频文件，排除隐藏目录，移动到 output 文件夹
+          find . -type f \( -name "*.mp4" -o -name "*.mkv" \) -not -path '*/.*' -exec mv {} ./output/ \;
+          
+          echo "搜索结束。检查 output 目录："
+          if [ -z "$(ls -A ./output)" ]; then
+             echo "错误：未发现视频文件。显示当前目录结构进行排查："
+             find . -maxdepth 4 -not -path '*/.*'
+          else
+             ls -lh ./output
+          fi
 
-      - name: Upload Result
+      - name: v2.0-Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Apple_Video_Package
+          name: Apple_Video_v2.0
           path: output/*
           retention-days: 1
