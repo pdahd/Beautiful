@@ -1,15 +1,22 @@
-name: Video Download with N_m3u8DL-RE
+name: Video Download with Clean Logs
 
 on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: '请填入抓取到的 .m3u8 链接 (不要直接填网页链接)'
+        description: '粘贴 playlist.m3u8 链接'
         required: true
       file_name:
-        description: '保存的文件名 (不含后缀)'
+        description: '保存的文件名'
         required: true
         default: 'apple_trailer'
+      quality:
+        type: choice
+        description: '选择分辨率'
+        options:
+          - '4K (Best)'
+          - '1080p'
+        default: '4K (Best)'
 
 jobs:
   download-job:
@@ -26,9 +33,7 @@ jobs:
 
       - name: Download Latest N_m3u8DL-RE
         run: |
-          URL=$(curl -s https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest \
-            | grep "browser_download_url.*linux-x64.*gz" \
-            | cut -d '"' -f 4)
+          URL=$(curl -s https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest | grep "browser_download_url.*linux-x64.*gz" | cut -d '"' -f 4)
           wget -O n_m3u8_latest.tar.gz "$URL"
           mkdir temp_bin
           tar -zxvf n_m3u8_latest.tar.gz -C temp_bin
@@ -37,19 +42,31 @@ jobs:
 
       - name: Execute Download
         run: |
-          # 修正后的命令：
-          # 1. 使用 --auto-select
-          # 2. 添加 -M format=mp4 自动合并为 MP4
+          if [ "${{ github.event.inputs.quality }}" == "4K (Best)" ]; then
+            VIDEO_FILTER="res=3840.*"
+          else
+            VIDEO_FILTER="res=1920.*"
+          fi
+
+          # 1. --log-level WARN 保持控制台整洁
+          # 2. --log-file-path 记录详细过程
+          # 3. --write-meta-json 记录所有流信息（默认开启，这里显式说明）
           ./n_m3u8 "${{ github.event.inputs.video_url }}" \
             --save-name "${{ github.event.inputs.file_name }}" \
+            -sv "$VIDEO_FILTER" \
+            -sa "best" \
+            -M format=mp4 \
             --auto-select \
-            -M format=mp4
+            --log-level WARN \
+            --log-file-path "${{ github.event.inputs.file_name }}_details.log"
 
-      - name: Upload Result
+      - name: Upload Video and Metadata
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.inputs.file_name }}
+          name: "${{ github.event.inputs.file_name }}_Package"
           path: |
              *.mp4
              *.mkv
+             *.json
+             *.log
           retention-days: 1
