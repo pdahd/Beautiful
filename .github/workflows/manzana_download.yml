@@ -1,4 +1,4 @@
-name: Apple Trailer Manzana (v4.0-Strategist)
+name: Apple Trailer Manzana (v4.1-DeepScan)
 
 on:
   workflow_dispatch:
@@ -8,13 +8,13 @@ on:
         required: true
       action_type:
         type: choice
-        description: '第一步：探测 ID 列表；第二步：正式下载'
+        description: '第一步：探测所有 ID；第二步：正式下载'
         options:
           - 'Probe_IDs_Only'
           - 'Formal_Download'
         default: 'Probe_IDs_Only'
       custom_sequence:
-        description: '【仅正式下载使用】填入 ID 序列 (例如 0\n13\nall\n4,40\nall\n2,50\n)'
+        description: '【正式下载】填入序列 (如 0\n13\nall\n4\nall\n2\n)'
         required: false
         default: ''
 
@@ -23,63 +23,71 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: v4.0-Checkout
+      - name: v4.1-Checkout
         uses: actions/checkout@v4
 
-      - name: v4.0-Environment Setup
+      - name: v4.1-Setup
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg gpac
-          pip install -r Manzana-Apple-TV-Plus-Trailers/requirements.txt || true
-          # 注意：如果是第一次运行，需要克隆
-          if [ ! -d "Manzana-Apple-TV-Plus-Trailers" ]; then
-            git clone https://github.com/dropcreations/Manzana-Apple-TV-Plus-Trailers.git
-            cd Manzana-Apple-TV-Plus-Trailers && pip install -r requirements.txt
-          fi
+          git clone https://github.com/dropcreations/Manzana-Apple-TV-Plus-Trailers.git
+          cd Manzana-Apple-TV-Plus-Trailers && pip install -r requirements.txt
 
-      # ---------------- 模式 1：探测 ID ----------------
-      - name: v4.0-Probe Mode
+      # ---------------- 模式 1：深度探测 ----------------
+      - name: v4.1-Deep Probe
         if: github.event.inputs.action_type == 'Probe_IDs_Only'
         run: |
           cd Manzana-Apple-TV-Plus-Trailers
-          echo "🔍 正在抓取该 URL 的所有可用流 ID..."
-          # 通过发送一个错误的输入序列，强制脚本在打印完表格后因输入错误或 EOF 退出
-          # 这样我们就能拿到表格，但不会触发实际下载
-          printf "invalid\n" | python manzana.py "${{ github.event.inputs.video_url }}" -d > ../stream_info.txt 2>&1 || true
+          echo "🔍 正在进行深度扫描，请稍候约 20 秒..."
           
-          echo "=== 探测报告摘要 ==="
-          cat ../stream_info.txt | grep -A 100 "Fetching video ranges" > ../Stream_Report.txt
+          # 使用 timeout 确保在开始下载前退出
+          # 预填 0 序列诱导所有表格弹出
+          timeout 40s python manzana.py "${{ github.event.inputs.video_url }}" -d <<EOF || true
+          0
+          0
+          0
+          0
+          0
+          0
+          EOF
+          
+          # 捕获所有带表格边框的行，这些通常是 ID 列表
+          # 将结果重定向到报告
+          python manzana.py "${{ github.event.inputs.video_url }}" -d <<EOF | grep -E "│|╭|╰|ID|Codec|Bitrate|Language" > ../Stream_Report.txt || true
+          0
+          0
+          0
+          0
+          0
+          0
+          EOF
+
+          echo "=== 扫描完成：以下为捕获到的 ID 概览 ==="
           cat ../Stream_Report.txt
 
-      - name: v4.0-Upload Report
+      - name: v4.1-Upload Report
         if: github.event.inputs.action_type == 'Probe_IDs_Only'
         uses: actions/upload-artifact@v4
         with:
-          name: Stream_Analysis_Report
+          name: Full_ID_Report
           path: Stream_Report.txt
 
-      # ---------------- 模式 2：正式下载 ----------------
-      - name: v4.0-Execute Download
+      # ---------------- 模式 2：正式下载 (沿用 v4.0) ----------------
+      - name: v4.1-Execute Download
         if: github.event.inputs.action_type == 'Formal_Download'
         run: |
           cd Manzana-Apple-TV-Plus-Trailers
-          echo "🚀 使用自定义序列启动精准下载: ${{ github.event.inputs.custom_sequence }}"
           printf "${{ github.event.inputs.custom_sequence }}" | python manzana.py "${{ github.event.inputs.video_url }}" -d | grep -v "Fetching segments"
 
-      - name: v4.0-Precision Extraction
+      - name: v4.1-Precision Extraction
         if: github.event.inputs.action_type == 'Formal_Download'
         run: |
           mkdir -p final_delivery
-          SRC_DIR="./Manzana-Apple-TV-Plus-Trailers/output"
-          if [ -d "$SRC_DIR" ]; then
-            mv "$SRC_DIR"/* ./final_delivery/
-          else
-            find ./Manzana-Apple-TV-Plus-Trailers -name "*.mp4" -exec mv {} ./final_delivery/ \;
-          fi
+          find ./Manzana-Apple-TV-Plus-Trailers/output -type f -exec mv {} ./final_delivery/ \; || find ./Manzana-Apple-TV-Plus-Trailers -name "*.mp4" -exec mv {} ./final_delivery/ \;
 
-      - name: v4.0-Upload Result
+      - name: v4.1-Upload Result
         if: github.event.inputs.action_type == 'Formal_Download'
         uses: actions/upload-artifact@v4
         with:
-          name: Apple_Trailer_v4.0_Final
+          name: Apple_Video_Final
           path: final_delivery/*
