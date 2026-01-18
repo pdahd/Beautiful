@@ -1,0 +1,57 @@
+name: Apple Trailer Download with Manzana
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: '直接粘贴 Apple TV+ 网页 URL (无需 m3u8)'
+        required: true
+      use_default:
+        description: '是否下载默认预告片 (自动选择最高画质)'
+        type: boolean
+        default: true
+
+jobs:
+  manzana-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (Self)
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies (FFmpeg & MP4Box)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg gpac
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Clone Manzana Repository
+        run: |
+          git clone https://github.com/dropcreations/Manzana-Apple-TV-Plus-Trailers.git
+          cd Manzana-Apple-TV-Plus-Trailers
+          pip install -r requirements.txt
+
+      - name: Execute Manzana
+        run: |
+          cd Manzana-Apple-TV-Plus-Trailers
+          # 如果选了 default，则带上 -d 参数，实现非交互下载
+          if [ "${{ github.event.inputs.use_default }}" == "true" ]; then
+            python manzana.py "${{ github.event.inputs.video_url }}" -d
+          else
+            # 注意：如果不选 -d，脚本会因为等待输入而超时挂掉
+            # 除非你通过 printf 给它喂入默认选项，例如：printf "1\n1\n1\n"
+            python manzana.py "${{ github.event.inputs.video_url }}"
+          fi
+
+      - name: Upload Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: Apple_Trailers
+          path: |
+             Manzana-Apple-TV-Plus-Trailers/*.mp4
+             Manzana-Apple-TV-Plus-Trailers/*.mkv
+          retention-days: 1
