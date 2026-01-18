@@ -6,7 +6,6 @@ on:
       video_url:
         description: '输入 m3u8 链接或支持的网页 URL'
         required: true
-        default: ''
       file_name:
         description: '保存的文件名 (不含后缀)'
         required: true
@@ -25,19 +24,32 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Download N_m3u8DL-RE
+      - name: Download Latest N_m3u8DL-RE
         run: |
-          # 获取最新 Linux x64 版本二进制文件
-          # 这里以 0.2.1-beta 为例，建议根据实际情况更新链接
-          wget https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.2.1-beta/N_m3u8DL-RE_v0.2.1-beta_linux-x64_20230628.tar.gz
-          tar -zxvf N_m3u8DL-RE_v0.2.1-beta_linux-x64_20230628.tar.gz
-          # 移动并赋予执行权限
-          mv N_m3u8DL-RE_v0.2.1-beta_linux-x64/N_m3u8DL-RE ./n_m3u8
+          # 使用 GitHub API 获取最新 Release 的下载链接
+          # 这样可以避免因作者更新版本号或日期导致的 404
+          URL=$(curl -s https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest \
+            | grep "browser_download_url.*linux-x64.*gz" \
+            | cut -d '"' -f 4)
+          
+          echo "正在从 $URL 下载..."
+          wget -O n_m3u8_latest.tar.gz "$URL"
+          
+          # 解压。注意：解压出来的文件夹名称可能随版本变化
+          # 我们直接寻找解压后名为 N_m3u8DL-RE 的可执行文件
+          mkdir temp_bin
+          tar -zxvf n_m3u8_latest.tar.gz -C temp_bin
+          
+          # 递归找到二进制文件并移动到当前目录，改名为 n_m3u8
+          find temp_bin -type f -name "N_m3u8DL-RE" -exec mv {} ./n_m3u8 \;
           chmod +x ./n_m3u8
+          
+          # 打印版本号确认成功
+          ./n_m3u8 --version
 
       - name: Execute Download
         run: |
-          # 使用 --save-name 指定文件名，--auto-select 自动选择最高画质
+          # 执行下载
           ./n_m3u8 "${{ github.event.inputs.video_url }}" --save-name "${{ github.event.inputs.file_name }}" --auto-select-true
 
       - name: Upload Result
