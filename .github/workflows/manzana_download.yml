@@ -1,4 +1,4 @@
-name: Apple Trailer Manzana (v2.2-Scope)
+name: Apple Trailer Manzana (v3.0-Precision)
 
 on:
   workflow_dispatch:
@@ -24,28 +24,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: v2.2-Checkout
+      - name: v3.0-Checkout
         uses: actions/checkout@v4
 
-      - name: v2.2-Install Dependencies
+      - name: v3.0-Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg gpac
 
-      - name: v2.2-Set up Python
+      - name: v3.0-Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: v2.2-Clone and Install
+      - name: v3.0-Clone and Install
         run: |
           git clone https://github.com/dropcreations/Manzana-Apple-TV-Plus-Trailers.git
           cd Manzana-Apple-TV-Plus-Trailers
           pip install -r requirements.txt
 
-      - name: v2.2-Execute Manzana
+      - name: v3.0-Execute Manzana
         run: |
           cd Manzana-Apple-TV-Plus-Trailers
+          
+          # 动态匹配输入序列
           if [ "${{ github.event.inputs.mode }}" == "4K_HDR_Best" ]; then
             INPUT_SEQ="0\n13\nall\nall\nall\nall\n"
           elif [ "${{ github.event.inputs.mode }}" == "1080p_SDR_Best" ]; then
@@ -53,32 +55,29 @@ jobs:
           else
             INPUT_SEQ="${{ github.event.inputs.custom_sequence }}"
           fi
+
+          echo "🚀 开始精准下载..."
           printf "$INPUT_SEQ" | python manzana.py "${{ github.event.inputs.video_url }}" -d | grep -v "Fetching segments"
 
-      - name: v2.2-Locate and Move
+      - name: v3.0-Precision Extraction
         if: always()
         run: |
-          mkdir -p final_output
-          echo "=== 路径审计：正在定位生成的视频文件 ==="
-          # 在整个工作区搜索 mp4，排除掉 final_output 目录本身
-          # 这将显示文件的真实路径，解决我们的困惑
-          find . -type f \( -name "*.mp4" -o -name "*.mkv" \) -not -path "./final_output/*" > file_list.txt
+          mkdir -p final_delivery
           
-          echo "查找到的文件位置："
-          cat file_list.txt
+          # 基于 v2.2 的审计发现，直接从工具自带的 output 目录提取
+          SRC_DIR="./Manzana-Apple-TV-Plus-Trailers/output"
           
-          echo "=== 开始移动文件 ==="
-          while read line; do
-            echo "正在移动: $line"
-            mv "$line" ./final_output/
-          done < file_list.txt
+          if [ -d "$SRC_DIR" ]; then
+            echo "📦 发现成品目录，正在转移文件..."
+            mv "$SRC_DIR"/* ./final_delivery/
+          else
+            echo "❌ 错误：未发现目录 $SRC_DIR，执行保底搜索..."
+            find ./Manzana-Apple-TV-Plus-Trailers -name "*.mp4" -exec mv {} ./final_delivery/ \;
+          fi
 
-          echo "=== 检查提取结果 ==="
-          ls -lh ./final_output
-
-      - name: v2.2-Upload Artifact
+      - name: v3.0-Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Apple_Video_v2.2
-          path: final_output/*
+          name: Apple_Trailer_v3.0_Final
+          path: final_delivery/*
           retention-days: 1
