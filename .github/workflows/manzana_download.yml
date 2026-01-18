@@ -1,4 +1,4 @@
-name: Apple Trailer Manzana Pro
+name: Apple Trailer Manzana Pro (Final)
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ on:
           - 'Custom_IDs'
         default: '4K_HDR_Best'
       custom_sequence:
-        description: '如果选了 Custom_IDs，请填入序列（如 0\n13\nall\nall\nall\nall\n）'
+        description: '如果选了 Custom_IDs，请填入序列'
         required: false
         default: ''
 
@@ -47,27 +47,30 @@ jobs:
         run: |
           cd Manzana-Apple-TV-Plus-Trailers
           
-          # 定义不同的输入序列 (6次输入: Range -> Stream -> AudioCodec -> AudioStream -> SubType -> SubStream)
-          
+          # 定义输入序列
           if [ "${{ github.event.inputs.mode }}" == "4K_HDR_Best" ]; then
-            # 0:HDR -> 13:最高码率4K -> all:所有音频编码 -> all:所有音轨 -> all:所有字幕类型 -> all:所有字幕
             INPUT_SEQ="0\n13\nall\nall\nall\nall\n"
           elif [ "${{ github.event.inputs.mode }}" == "1080p_SDR_Best" ]; then
-            # 1:SDR -> 11:最高码率1080p -> all -> all -> all -> all
             INPUT_SEQ="1\n11\nall\nall\nall\nall\n"
           else
-            # 用户自定义模式
             INPUT_SEQ="${{ github.event.inputs.custom_sequence }}"
           fi
 
-          echo "正在执行下载，使用序列: $INPUT_SEQ"
+          # 这里的 -d 参数让它自动选择 trailer
           printf "$INPUT_SEQ" | python manzana.py "${{ github.event.inputs.video_url }}" -d
+
+      - name: Organize Files
+        if: always()
+        run: |
+          # 创建一个统一的输出文件夹，把 Downloads 里的文件移出来
+          mkdir -p output
+          find Manzana-Apple-TV-Plus-Trailers/Downloads -type f \( -name "*.mp4" -o -name "*.mkv" \) -exec mv {} ./output/ \;
+          echo "已移动以下文件到 output 目录："
+          ls -R ./output
 
       - name: Upload Result
         uses: actions/upload-artifact@v4
         with:
-          name: Apple_Video_Result
-          path: |
-             Manzana-Apple-TV-Plus-Trailers/*.mp4
-             Manzana-Apple-TV-Plus-Trailers/*.mkv
+          name: Apple_Video_Package
+          path: output/*
           retention-days: 1
