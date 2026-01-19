@@ -1,4 +1,4 @@
-name: Apple Trailer Manzana (v5.9-Instant-Kill)
+name: Apple Trailer Manzana (v5.6-Ultra)
 
 on:
   workflow_dispatch:
@@ -8,13 +8,13 @@ on:
         required: true
       action_type:
         type: choice
-        description: '模式选择'
+        description: '模式选择 (第一步探测菜单，第二步正式下载)'
         options:
           - 'Probe_All_Details'
           - 'Formal_Download'
         default: 'Probe_All_Details'
       custom_sequence:
-        description: '【正式下载填入】序列示例: 0\n13\nall\n4\nall\n2\n'
+        description: '【正式下载填入】根据探测报告组合 ID，例如: 0\n13\nall\n4\nall\n2\n'
         required: false
         default: ''
 
@@ -23,40 +23,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: v5.9-Checkout
+      - name: v5.6-Checkout
         uses: actions/checkout@v4
 
-      - name: v5.9-Environment Setup
+      - name: v5.6-Environment Setup
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg gpac
           git clone https://github.com/dropcreations/Manzana-Apple-TV-Plus-Trailers.git
           cd Manzana-Apple-TV-Plus-Trailers && pip install -r requirements.txt
 
-      # ---------------- 模式 1：零延迟瞬杀探测 (极其利落) ----------------
-      - name: v5.9-Instant-Kill Probe
+      # ---------------- 模式 1：强力拦截探测 (无报错回滚版) ----------------
+      - name: v5.6-Precision Probe
         if: github.event.inputs.action_type == 'Probe_All_Details'
         run: |
           cd Manzana-Apple-TV-Plus-Trailers
-          echo "🔍 启动瞬杀拦截探测 (目标: Fetching m3u8)..."
+          echo "🔍 正在进行诱导探测 (Range=0, Stream=13, Others=all)..."
           
-          # 1. 启动后台探测进程
+          # 启动探测
           (printf "0\n13\nall\nall\nall\nall\n" | python manzana.py "${{ github.event.inputs.video_url }}" -d 2>&1 | tee ../raw_full.log) & 
           
-          # 2. 核心拦截器：监控日志，一旦命中关键字，立即强制斩断 Python 进程
-          # grep -m 1 匹配到第一次后就会退出，触发后面的 pkill -9
-          tail -f ../raw_full.log | grep -m 1 "Fetching m3u8" && pkill -9 -f python 2>/dev/null || true
+          # 强力监控
+          for i in {1..60}; do
+            if grep -q "Fetching segments" ../raw_full.log; then
+              echo "✅ 已捕获 80+ ID 菜单！正在执行瞬杀拦截..."
+              # 使用 pkill 保证断流干净，同时静默报错
+              pkill -9 -f python 2>/dev/null || true
+              break
+            fi
+            sleep 1
+          done
           
-          echo "✅ 拦截已触发！进程已在分片抓取前被暴力终止。"
-          
-          # 3. 日志清洗与报告生成
+          # 清理日志 ANSI 颜色
           cd ..
           sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" raw_full.log > Full_ID_Report.txt
           
-          echo "=== 探测报告末尾预览 ==="
-          tail -n 20 Full_ID_Report.txt
+          echo "=== 探测报告预览 (表格底部) ==="
+          grep -E "│|╭|╰|ID|Codec|Bitrate|Language|Content|Range" Full_ID_Report.txt | tail -n 25
 
-      - name: v5.9-Upload ID Report
+      - name: v5.6-Upload ID Report
         if: github.event.inputs.action_type == 'Probe_All_Details'
         uses: actions/upload-artifact@v4
         with:
@@ -64,17 +69,14 @@ jobs:
           path: Full_ID_Report.txt
 
       # ---------------- 模式 2：正式下载 ----------------
-      - name: v5.9-Execute Download
+      - name: v5.6-Execute Download
         if: github.event.inputs.action_type == 'Formal_Download'
         run: |
           cd Manzana-Apple-TV-Plus-Trailers
-          echo "🚀 启动正式下载，自定义序列: "
-          echo "${{ github.event.inputs.custom_sequence }}"
-          # 正式执行，并过滤掉下载过程中的 Fetching 滚动条
+          echo "🚀 执行下载序列: ${{ github.event.inputs.custom_sequence }}"
           printf "${{ github.event.inputs.custom_sequence }}" | python manzana.py "${{ github.event.inputs.video_url }}" -d | grep -v "Fetching segments"
 
-      - name: v5.9-Final Extraction
-        if: always() && github.event.inputs.action_type == 'Formal_Download'
+      - name: v5.6-Extraction
         run: |
           mkdir -p final_delivery
           if [ -d "./Manzana-Apple-TV-Plus-Trailers/output" ]; then
@@ -82,10 +84,8 @@ jobs:
           fi
           find ./Manzana-Apple-TV-Plus-Trailers -maxdepth 2 -type f \( -name "*.mp4" -o -name "*.mkv" \) -exec mv {} ./final_delivery/ \; 2>/dev/null || true
 
-      - name: v5.9-Upload Video
-        if: always() && github.event.inputs.action_type == 'Formal_Download'
+      - name: v5.6-Upload Result
         uses: actions/upload-artifact@v4
         with:
           name: Apple_Video_Result
           path: final_delivery/*
-          retention-days: 7
