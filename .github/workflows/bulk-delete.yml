@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       file_box_1:
-        description: '输入框 1 (支持空格分隔多个文件)'
+        description: '路径示例: folder/file.txt 或 sub/dir/ (支持空格分隔)'
         required: false
       file_box_2:
-        description: '输入框 2'
+        description: '支持通配符: logs/*.log'
         required: false
       file_box_3:
         description: '输入框 3'
@@ -54,21 +54,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: 执行删除操作
         run: |
-          # 汇总所有输入框的内容
-          ALL_FILES="${{ github.event.inputs.file_box_1 }} ${{ github.event.inputs.file_box_2 }} ${{ github.event.inputs.file_box_3 }} ${{ github.event.inputs.file_box_4 }} ${{ github.event.inputs.file_box_5 }} ${{ github.event.inputs.file_box_6 }} ${{ github.event.inputs.file_box_7 }} ${{ github.event.inputs.file_box_8 }} ${{ github.event.inputs.file_box_9 }} ${{ github.event.inputs.file_box_10 }} ${{ github.event.inputs.file_box_11 }} ${{ github.event.inputs.file_box_12 }} ${{ github.event.inputs.file_box_13 }} ${{ github.event.inputs.file_box_14 }} ${{ github.event.inputs.file_box_15 }}"
+          # 汇总 15 个输入框的内容并清理多余空格
+          RAW_INPUTS="${{ github.event.inputs.file_box_1 }} ${{ github.event.inputs.file_box_2 }} ${{ github.event.inputs.file_box_3 }} ${{ github.event.inputs.file_box_4 }} ${{ github.event.inputs.file_box_5 }} ${{ github.event.inputs.file_box_6 }} ${{ github.event.inputs.file_box_7 }} ${{ github.event.inputs.file_box_8 }} ${{ github.event.inputs.file_box_9 }} ${{ github.event.inputs.file_box_10 }} ${{ github.event.inputs.file_box_11 }} ${{ github.event.inputs.file_box_12 }} ${{ github.event.inputs.file_box_13 }} ${{ github.event.inputs.file_box_14 }} ${{ github.event.inputs.file_box_15 }}"
           
-          # 循环处理每一个文件路径
-          for file in $ALL_FILES; do
-            if [ -e "$file" ]; then
-              git rm -r "$file"
-              echo "✅ 已标记删除: $file"
-            else
-              echo "⚠️ 未找到文件或目录: $file，跳过"
-            fi
+          # 使用 shell 的 glob 扩展来处理路径和通配符
+          for pattern in $RAW_INPUTS; do
+            # 查找匹配的文件或目录
+            for file in $pattern; do
+              if [ -e "$file" ]; then
+                git rm -rf "$file"
+                echo "✅ 已标记删除: $file"
+              else
+                echo "⚠️ 跳过不存在的路径: $pattern"
+              fi
+            done
           done
 
       - name: 提交并推送更改
@@ -77,10 +80,9 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global core.quotepath false
           
-          # 检查是否有文件被标记删除，避免 commit 失败
           if ! git diff --cached --exit-code --quiet; then
-            git commit -m "Actions: 批量删除文件 [skip ci]"
+            git commit -m "Actions: 批量删除文件/文件夹 [skip ci]"
             git push
           else
-            echo "没有识别到有效的文件路径，无需提交。"
+            echo "没有发现需要删除的有效文件。"
           fi
