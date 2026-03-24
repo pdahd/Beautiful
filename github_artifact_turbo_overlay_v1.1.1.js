@@ -1,10 +1,10 @@
 (() => {
   const SCRIPT_NAME = "GitHub Artifact Turbo Overlay";
-  const SCRIPT_VERSION = "v1.1.0";
+  const SCRIPT_VERSION = "v1.1.1";
   const GLOBAL_KEY = "__githubArtifactTurboOverlayApp__";
   const HOST_ID = "__github_artifact_turbo_overlay_host__";
   const TOAST_ID = "__github_artifact_turbo_overlay_toast__";
-  const STORAGE_KEY = "__githubArtifactTurboOverlayStore__";
+  const STORAGE_KEY = "__githubArtifactTurboOverlayStore__::v1.1.1";
   const DEFAULT_WORKER_BASE = "https://xiazai.yswwsy.workers.dev";
   const DEFAULT_PANEL_PAGE = "https://pdahd.github.io/Beautiful/";
   const GITHUB_HOST_RE = /(^|\.)github\.com$/i;
@@ -37,7 +37,7 @@
       panelPage: DEFAULT_PANEL_PAGE,
 
       workerAlive: false,
-      mode: "account", // account | repo | run
+      mode: "account", // run | repo | account
       items: [],
       repos: [],
       syncStatus: null,
@@ -100,7 +100,7 @@
       this.updateUI();
 
       void this.pingWorker();
-      void this.loadSyncStatus();
+      void this.loadSyncStatus(true);
       void this.loadReposIndex(true);
       void this.refreshData(false);
 
@@ -117,8 +117,10 @@
       if (this.boundResize) {
         window.removeEventListener("resize", this.boundResize, false);
       }
+
       clearTimeout(this._toastTimer);
       clearTimeout(this._titleTapTimer);
+      clearInterval(this._syncPollTimer);
       cancelAnimationFrame(this.layoutRaf);
 
       const toast = document.getElementById(TOAST_ID);
@@ -174,21 +176,26 @@
         if (typeof data.workerBase === "string" && data.workerBase.trim()) {
           this.state.workerBase = data.workerBase.trim();
         }
+
         if (typeof data.panelPage === "string" && data.panelPage.trim()) {
           this.state.panelPage = data.panelPage.trim();
         }
+
         if (data.filters && typeof data.filters === "object") {
           this.state.filters.query = String(data.filters.query || "");
           this.state.filters.includeExpired = !!data.filters.includeExpired;
           this.state.filters.sort = String(data.filters.sort || "created_at");
           this.state.filters.order = String(data.filters.order || "desc");
         }
+
         if (data.pagination && typeof data.pagination === "object") {
           this.state.pagination.perPage = Number(data.pagination.perPage) || 20;
         }
+
         if (typeof data.selectedRepoFullName === "string") {
           this.state.selectedRepoFullName = data.selectedRepoFullName;
         }
+
         if (data.ui && typeof data.ui === "object") {
           if (Number.isFinite(data.ui.x)) this.state.ui.x = data.ui.x;
           if (Number.isFinite(data.ui.y)) this.state.ui.y = data.ui.y;
@@ -249,6 +256,7 @@
 
     bootstrapModeFromContext() {
       const cur = this.state.currentContext;
+
       if (cur.owner && cur.repo && cur.runId) {
         this.state.mode = "run";
         this.state.activeContext = {
@@ -280,9 +288,9 @@
     },
 
     modeLabel() {
-      if (this.state.mode === "run") return "Run";
-      if (this.state.mode === "repo") return "Repo";
-      return "Account";
+      if (this.state.mode === "run") return "当前 Run";
+      if (this.state.mode === "repo") return "当前仓库";
+      return "全账户";
     },
 
     currentFullName() {
@@ -290,18 +298,18 @@
       return owner && repo ? `${owner}/${repo}` : "";
     },
 
-    normalizeBaseUrl(value) {
-      const s = String(value || "").trim();
-      if (!s) throw new Error("地址不能为空");
-      const u = new URL(s);
-      return u.href.replace(/\/+$/, "/");
-    },
-
     normalizeWorkerBase(value) {
       const s = String(value || "").trim();
       if (!s) throw new Error("Worker 地址不能为空");
       const u = new URL(s);
       return u.origin.replace(/\/+$/, "");
+    },
+
+    normalizeBaseUrl(value) {
+      const s = String(value || "").trim();
+      if (!s) throw new Error("页面地址不能为空");
+      const u = new URL(s);
+      return u.href.replace(/\/+$/, "/");
     },
 
     apiUrl(path, params = {}) {
@@ -320,12 +328,15 @@
         headers: init.headers || {},
         body: init.body
       });
+
       const text = await res.text();
       let data = null;
       try { data = text ? JSON.parse(text) : null; } catch {}
+
       if (!res.ok || (data && data.ok === false)) {
         throw new Error(data?.error || `请求失败：${res.status}${text ? ` ｜ ${text.slice(0, 200)}` : ""}`);
       }
+
       return data;
     },
 
@@ -344,7 +355,7 @@
       }
     },
 
-    async loadSyncStatus(silent = true) {
+    async loadSyncStatus(silent = false) {
       try {
         const data = await this.fetchJSON("/api/sync/status");
         this.state.syncStatus = data;
@@ -357,7 +368,7 @@
 
     startSyncPolling() {
       clearInterval(this._syncPollTimer);
-      let remain = 20;
+      let remain = 24;
       this._syncPollTimer = setInterval(async () => {
         remain -= 1;
         await this.loadSyncStatus(true);
@@ -371,18 +382,28 @@
 
     async loadReposIndex(silent = false) {
       try {
-        const first = await this.fetchJSON("/api/repos", { page: 1, per_page: 200 });
+        const first = await this.fetchJSON("/api/repos", {
+          page: 1,
+          per_page: 200
+        });
+
         let items = Array.isArray(first.items) ? [...first.items] : [];
         const totalPages = Number(first.total_pages || 1);
 
         for (let page = 2; page <= totalPages; page += 1) {
-          const next = await this.fetchJSON("/api/repos", { page, per_page: 200 });
-          if (Array.isArray(next.items)) items.push(...next.items);
+          const next = await this.fetchJSON("/api/repos", {
+            page,
+            per_page: 200
+          });
+          if (Array.isArray(next.items)) {
+            items.push(...next.items);
+          }
         }
 
         items.sort((a, b) => String(a.full_name).localeCompare(String(b.full_name)));
         this.state.repos = items;
         this.updateRepoSelectOptions();
+        this.updateUI();
 
         if (!silent) this.toast(`已加载仓库索引\n共 ${items.length} 个仓库`);
       } catch (err) {
@@ -395,7 +416,7 @@
 
       const items = this.state.repos;
       if (!items.length) {
-        this.refs.repoSelect.innerHTML = `<option value="">（暂无仓库）</option>`;
+        this.refs.repoSelect.innerHTML = `<option value="">（暂无仓库，请先加载仓库索引）</option>`;
         this.refs.repoSelect.disabled = true;
         return;
       }
@@ -426,8 +447,13 @@
       if (!(cur.owner && cur.repo && cur.runId)) {
         return this.toast("当前页面不是 GitHub Actions run 页面");
       }
+
       this.state.mode = "run";
-      this.state.activeContext = { owner: cur.owner, repo: cur.repo, runId: cur.runId };
+      this.state.activeContext = {
+        owner: cur.owner,
+        repo: cur.repo,
+        runId: cur.runId
+      };
       this.state.selectedRepoFullName = `${cur.owner}/${cur.repo}`;
       this.state.pagination.page = 1;
       this.saveStore();
@@ -440,8 +466,13 @@
       if (!(cur.owner && cur.repo)) {
         return this.toast("当前页面未识别到 owner/repo");
       }
+
       this.state.mode = "repo";
-      this.state.activeContext = { owner: cur.owner, repo: cur.repo, runId: "" };
+      this.state.activeContext = {
+        owner: cur.owner,
+        repo: cur.repo,
+        runId: ""
+      };
       this.state.selectedRepoFullName = `${cur.owner}/${cur.repo}`;
       this.state.pagination.page = 1;
       this.updateRepoSelectOptions();
@@ -452,7 +483,11 @@
 
     switchToAccount() {
       this.state.mode = "account";
-      this.state.activeContext = { owner: "", repo: "", runId: "" };
+      this.state.activeContext = {
+        owner: "",
+        repo: "",
+        runId: ""
+      };
       this.state.pagination.page = 1;
 
       if (!this.state.repos.length) {
@@ -592,6 +627,24 @@
       }
     },
 
+    prevPage() {
+      if (this.state.mode === "run") return;
+      if (this.state.pagination.page <= 1) return;
+
+      this.state.pagination.page -= 1;
+      this.updateUI();
+      void this.refreshData(false);
+    },
+
+    nextPage() {
+      if (this.state.mode === "run") return;
+      if (this.state.pagination.page >= this.state.pagination.totalPages) return;
+
+      this.state.pagination.page += 1;
+      this.updateUI();
+      void this.refreshData(false);
+    },
+
     cleanupSelection() {
       const valid = new Set(this.state.items.map(item => String(item.artifact_id)));
       const next = new Set();
@@ -628,6 +681,7 @@
         await navigator.clipboard.writeText(text);
         return;
       }
+
       const ta = document.createElement("textarea");
       ta.value = text;
       ta.style.cssText = "position:fixed;left:-9999px;top:0;";
@@ -691,7 +745,10 @@
 
     exportTXT() {
       if (!this.state.items.length) return this.toast("当前没有结果");
-      this.downloadTextFile(`github_artifacts_overlay_${Date.now()}.txt`, this.exportCurrentTXT(this.state.items));
+      this.downloadTextFile(
+        `github_artifacts_overlay_${Date.now()}.txt`,
+        this.exportCurrentTXT(this.state.items)
+      );
       this.toast("已导出 TXT");
     },
 
@@ -713,15 +770,6 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
-    },
-
-    downloadSelectedBatch() {
-      const items = this.getSelectedItems();
-      if (!items.length) return this.toast("未选择任何工件");
-      for (const item of items) {
-        this.openDownload(item.cf_download_url);
-      }
-      this.toast(`已触发批量下载\n共 ${items.length} 条`);
     },
 
     humanBytes(bytes) {
@@ -766,10 +814,10 @@
           <div class="gato-empty">
             当前没有结果。
             <br>可尝试：
-            <br>1. 点击 Current Run / Current Repo / Account
-            <br>2. 点击 Refresh
-            <br>3. 点击 Sync Account
-            <br>4. 在 Account 模式下先加载仓库索引，再切换到所选仓库
+            <br>1. 点击“当前 Run / 当前仓库 / 全账户”
+            <br>2. 点击“刷新”
+            <br>3. 点击“全账户同步”
+            <br>4. 在“全账户”模式下先加载仓库索引，再切换到所选仓库
           </div>
         `;
         return;
@@ -779,6 +827,7 @@
         const id = String(item.artifact_id);
         const checked = this.state.selectedIds.has(id);
         const currentRepoClass = item.full_name === this.state.selectedRepoFullName ? "is-current" : "";
+
         return `
           <div class="gato-item ${checked ? "is-selected" : ""}">
             <div class="gato-item-head">
@@ -797,42 +846,17 @@
                 <button class="gato-mini" data-action="open-run" data-id="${this.escapeHtml(id)}" type="button">打开 Run</button>
               </div>
             </div>
+
             <div class="gato-item-body">
               <div class="gato-kv"><b>Run ID</b>${item.workflow_run?.id ? this.escapeHtml(String(item.workflow_run.id)) : "-"}</div>
-              <div class="gato-kv"><b>Artifact ID</b>${this.escapeHtml(String(item.artifact_id))}</div>
               <div class="gato-kv"><b>大小</b>${this.escapeHtml(this.humanBytes(item.size_in_bytes))}</div>
               <div class="gato-kv"><b>创建时间</b>${this.escapeHtml(this.formatDate(item.created_at))}</div>
               <div class="gato-kv"><b>过期时间</b>${this.escapeHtml(this.formatDate(item.expires_at))}</div>
-              <div class="gato-kv">
-                <b>快捷复制</b>
-                <div class="gato-inline-actions">
-                  <button class="gato-mini" data-copy-run="${this.escapeHtml(String(item.workflow_run?.id || ""))}" type="button">复制 run_id</button>
-                  <button class="gato-mini" data-copy-artifact="${this.escapeHtml(String(item.artifact_id))}" type="button">复制 artifact_id</button>
-                </div>
-              </div>
               <div class="gato-urlbox">${this.escapeHtml(item.cf_download_url)}</div>
             </div>
           </div>
         `;
       }).join("");
-
-      this.refs.list.querySelectorAll("[data-copy-run]").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const value = btn.getAttribute("data-copy-run");
-          if (!value) return this.toast("该项没有 run_id");
-          await this.copyText(value);
-          this.toast(`已复制 run_id\n${value}`);
-        });
-      });
-
-      this.refs.list.querySelectorAll("[data-copy-artifact]").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const value = btn.getAttribute("data-copy-artifact");
-          if (!value) return;
-          await this.copyText(value);
-          this.toast(`已复制 artifact_id\n${value}`);
-        });
-      });
     },
 
     buildUI() {
@@ -857,7 +881,7 @@
           .gato-fab{
             display:inline-flex;align-items:center;justify-content:center;
             border:none;border-radius:999px;background:#111827;color:#fff;
-            padding:10px 14px;font-size:13px;font-weight:800;cursor:pointer;
+            padding:10px 14px;font-size:13px;font-weight:900;cursor:pointer;
             box-shadow:0 8px 24px rgba(0,0,0,.25);
           }
           .gato-fab.hidden{display:none;}
@@ -869,7 +893,8 @@
             border:1px solid rgba(0,0,0,.08);
             border-radius:16px;
             box-shadow:0 12px 36px rgba(0,0,0,.22);
-            overflow:hidden;backdrop-filter:blur(8px);
+            overflow:hidden;
+            backdrop-filter:blur(8px);
           }
           .gato-panel.hidden{display:none;}
           .gato-panel.is-collapsed .gato-body{display:none;}
@@ -889,7 +914,7 @@
           .gato-head-actions{display:flex;gap:6px;align-items:center;}
           .gato-head-btn{
             width:30px;height:30px;border:none;border-radius:999px;
-            background:#e5e7eb;color:#111827;font-size:14px;font-weight:800;cursor:pointer;
+            background:#e5e7eb;color:#111827;font-size:14px;font-weight:900;cursor:pointer;
           }
           .gato-body{
             padding:12px;overflow:auto;
@@ -898,7 +923,7 @@
           .gato-status,.gato-substatus{
             font-size:12px;line-height:1.55;white-space:pre-wrap;margin-bottom:6px;
           }
-          .gato-status{font-weight:800;}
+          .gato-status{font-weight:900;}
           .gato-substatus{color:#4b5563;}
           .gato-section{
             display:flex;justify-content:space-between;gap:8px;align-items:center;
@@ -926,6 +951,7 @@
           }
           .gato-btn.secondary{background:#f3f4f6;color:#111827;}
           .gato-btn.warn{background:#b91c1c;color:#fff;}
+          .gato-btn:disabled{opacity:.5;cursor:default;}
           .gato-info{
             border:1px solid #e5e7eb;background:#f9fafb;border-radius:10px;
             padding:10px;font-size:12px;line-height:1.6;color:#374151;white-space:pre-wrap;
@@ -969,9 +995,6 @@
           .gato-kv b{
             display:block;font-size:11px;color:#6b7280;margin-bottom:4px;
           }
-          .gato-inline-actions{
-            display:flex;flex-wrap:wrap;gap:4px;
-          }
           .gato-urlbox{
             grid-column:1/-1;border:1px solid #e5e7eb;background:#fafafa;border-radius:10px;
             padding:8px 10px;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:#374151;
@@ -987,7 +1010,7 @@
         </style>
 
         <div class="gato-wrap">
-          <button class="gato-fab">Artifacts</button>
+          <button class="gato-fab">工件</button>
 
           <section class="gato-panel">
             <div class="gato-titlebar">
@@ -1009,7 +1032,7 @@
 
               <div class="gato-section">
                 <span>当前网页上下文</span>
-                <span class="gato-section-meta">非 GitHub 页面也可正常使用</span>
+                <span class="gato-section-meta">非 GitHub 页面也可用</span>
               </div>
               <div class="gato-info" data-role="context-info"></div>
 
@@ -1073,18 +1096,17 @@
 
               <div class="gato-grid">
                 <button class="gato-btn secondary" data-action="save-worker" type="button">保存 Worker</button>
-                <button class="gato-btn secondary" data-action="ping" type="button">Ping Worker</button>
+                <button class="gato-btn secondary" data-action="ping" type="button">检测 Worker</button>
                 <button class="gato-btn secondary" data-action="load-repos" type="button">加载仓库索引</button>
-                <button class="gato-btn" data-action="use-run" type="button">Current Run</button>
-                <button class="gato-btn" data-action="use-repo" type="button">Current Repo</button>
-                <button class="gato-btn" data-action="use-account" type="button">Account</button>
+                <button class="gato-btn" data-action="use-run" type="button">当前 Run</button>
+                <button class="gato-btn" data-action="use-repo" type="button">当前仓库</button>
+                <button class="gato-btn" data-action="use-account" type="button">全账户</button>
                 <button class="gato-btn secondary" data-action="use-selected-repo" type="button">切换到所选仓库</button>
-                <button class="gato-btn secondary" data-action="refresh" type="button">Refresh</button>
-                <button class="gato-btn secondary" data-action="sync-repo" type="button">Sync Repo</button>
-                <button class="gato-btn warn" data-action="sync-account" type="button">Sync Account</button>
+                <button class="gato-btn secondary" data-action="refresh" type="button">刷新</button>
+                <button class="gato-btn secondary" data-action="sync-repo" type="button">同步当前仓库</button>
+                <button class="gato-btn warn" data-action="sync-account" type="button">全账户同步</button>
                 <button class="gato-btn secondary" data-action="copy-current" type="button">复制当前页链接</button>
                 <button class="gato-btn secondary" data-action="copy-selected" type="button">复制选中链接</button>
-                <button class="gato-btn secondary" data-action="batch-download" type="button">批量下载选中</button>
                 <button class="gato-btn secondary" data-action="export-txt" type="button">导出 TXT</button>
                 <button class="gato-btn secondary" data-action="export-json" type="button">导出 JSON</button>
                 <button class="gato-btn warn" data-action="clear-selection" type="button">清空选择</button>
@@ -1096,6 +1118,7 @@
               </div>
 
               <div class="gato-info" data-role="page-info"></div>
+
               <div class="gato-grid">
                 <button class="gato-btn secondary" data-action="prev-page" type="button">上一页</button>
                 <button class="gato-btn secondary" data-action="next-page" type="button">下一页</button>
@@ -1104,8 +1127,8 @@
               <div class="gato-list" data-role="list"></div>
 
               <div class="gato-note">
-                统一模式说明：在 GitHub 页面建议自动跳转完整 HTML 面板；
-                在其它网站页面使用本悬浮版更轻便。若站点 CSP 较严，可改用完整面板页。
+                说明：GitHub 页面建议使用完整 HTML 面板；其它网站优先使用本悬浮版。
+                若目标站点拦截脚本，可自动回退打开完整面板页。
               </div>
             </div>
           </section>
@@ -1158,7 +1181,7 @@
           this.saveStore();
           this.updateUI();
           const ok = await this.pingWorker();
-          this.toast(ok ? "Worker 地址已保存" : "Worker Ping 失败");
+          this.toast(ok ? "Worker 地址已保存" : "Worker 检测失败");
         } catch (err) {
           this.toast(`Worker 地址无效\n${err.message || err}`);
         }
@@ -1179,7 +1202,6 @@
       shadow.querySelector('[data-action="sync-account"]').addEventListener("click", () => void this.syncAccount());
       shadow.querySelector('[data-action="copy-current"]').addEventListener("click", () => void this.copyCurrentLinks());
       shadow.querySelector('[data-action="copy-selected"]').addEventListener("click", () => void this.copySelectedLinks());
-      shadow.querySelector('[data-action="batch-download"]').addEventListener("click", () => this.downloadSelectedBatch());
       shadow.querySelector('[data-action="export-txt"]').addEventListener("click", () => this.exportTXT());
       shadow.querySelector('[data-action="export-json"]').addEventListener("click", () => this.exportJSON());
       shadow.querySelector('[data-action="clear-selection"]').addEventListener("click", () => this.clearSelection());
@@ -1191,6 +1213,15 @@
         this.state.pagination.page = 1;
         this.saveStore();
         void this.refreshData(false);
+      });
+
+      this.refs.query.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          this.state.filters.query = this.refs.query.value.trim();
+          this.state.pagination.page = 1;
+          this.saveStore();
+          void this.refreshData(false);
+        }
       });
 
       this.refs.sort.addEventListener("change", () => {
@@ -1236,6 +1267,7 @@
       this.refs.list.addEventListener("click", async (e) => {
         const btn = e.target.closest("button[data-action]");
         if (!btn) return;
+
         const action = btn.getAttribute("data-action");
         const id = btn.getAttribute("data-id");
         const item = this.getItemById(id);
@@ -1272,65 +1304,6 @@
       this.applyFloatingLayout({ save: false });
     },
 
-    updateUI() {
-      if (!this.state.uiReady) return;
-
-      this.refs.panel.classList.toggle("hidden", !this.state.panelOpen);
-      this.refs.fab.classList.toggle("hidden", this.state.panelOpen);
-      this.refs.panel.classList.toggle("is-collapsed", !!this.state.ui.collapsed);
-      this.refs.fab.textContent = this.state.pagination.totalCount > 0 ? `Artifacts ${this.state.pagination.totalCount}` : "Artifacts";
-
-      const modeLabel = this.modeLabel();
-      const act = this.state.activeContext;
-      const cur = this.state.currentContext;
-      const sync = this.state.syncStatus;
-
-      this.refs.titleSummary.textContent =
-        `${modeLabel} ｜ 当前页 ${this.state.items.length} 条 / 总数 ${this.state.pagination.totalCount}\n` +
-        `Worker ${this.state.workerAlive ? "在线" : "离线"}${this.state.loading ? " ｜ 加载中..." : ""}`;
-
-      this.refs.status.textContent =
-        `当前模式：${modeLabel}\n` +
-        `活动上下文：${act.owner && act.repo ? `${act.owner}/${act.repo}` : "全账户"}${act.runId ? ` ｜ run ${act.runId}` : ""}\n` +
-        `当前网页：${location.href}`;
-
-      this.refs.substatus.textContent =
-        `来源识别：${cur.owner && cur.repo ? `${cur.owner}/${cur.repo}` : "非 GitHub 仓库页"}${cur.runId ? ` ｜ run ${cur.runId}` : ""}\n` +
-        `所选仓库：${this.state.selectedRepoFullName || "无"}\n` +
-        `Worker：${this.state.workerBase}\n` +
-        `最新错误：${this.state.lastError || "无"}`;
-
-      this.refs.contextInfo.textContent =
-        `来源 URL：${this.state.currentContext.sourceUrl}\n` +
-        `识别结果：${cur.owner && cur.repo ? `${cur.owner}/${cur.repo}` : "无仓库"}${cur.runId ? ` ｜ run ${cur.runId}` : ""}\n` +
-        (sync
-          ? `索引状态：仓库 ${sync.repo_count} ｜ 工件 ${sync.artifact_count}${sync.latest_job ? ` ｜ 最近任务 ${sync.latest_job.status}` : ""}`
-          : "索引状态：未加载");
-
-      this.refs.entriesMeta.textContent =
-        `共 ${this.state.pagination.totalCount} 条 ｜ 当前页 ${this.state.items.length} 条 ｜ 已选 ${this.state.selectedIds.size} 条`;
-
-      this.refs.pageInfo.textContent =
-        `页码：${this.state.pagination.page} / ${this.state.pagination.totalPages}\n` +
-        `筛选：query=${this.state.filters.query || "(空)"} ｜ expired=${this.state.filters.includeExpired ? "含" : "不含"} ｜ sort=${this.state.filters.sort} ${this.state.filters.order}`;
-
-      this.refs.workerBase.value = this.state.workerBase;
-      this.refs.query.value = this.state.filters.query;
-      this.refs.sort.value = this.state.filters.sort;
-      this.refs.order.value = this.state.filters.order;
-      this.refs.perPage.value = String(this.state.pagination.perPage);
-      this.refs.includeExpired.checked = this.state.filters.includeExpired;
-
-      if (this.state.repos.length) {
-        if (this.refs.repoSelect.value !== this.state.selectedRepoFullName) {
-          this.refs.repoSelect.value = this.state.selectedRepoFullName || this.state.repos[0].full_name;
-        }
-      }
-
-      this.renderItems();
-      this.applyFloatingLayout({ save: false });
-    },
-
     installResizeHandler() {
       if (this.boundResize) {
         window.removeEventListener("resize", this.boundResize, false);
@@ -1358,6 +1331,7 @@
         if (!wrap || !panel || !fab) return;
 
         panel.style.width = `${this.getPreferredWidth()}px`;
+
         const el = this.getVisibleEl();
         if (!el) return;
 
@@ -1542,13 +1516,16 @@
 
     onTitlebarPointerCancel(e) {
       if (!this.dragState || e.pointerId !== this.dragState.pointerId) return;
+
       const wrap = this.refs.wrap;
       if (wrap) wrap.classList.remove("is-dragging");
+
       try {
         if (this.refs.titlebar.hasPointerCapture(e.pointerId)) {
           this.refs.titlebar.releasePointerCapture(e.pointerId);
         }
       } catch {}
+
       this.dragState = null;
       this.resetTitleTapState();
     },
