@@ -4,7 +4,7 @@
   const GLOBAL_KEY = "__githubArtifactTurboOverlayApp__";
   const HOST_ID = "__github_artifact_turbo_overlay_host__";
   const TOAST_ID = "__github_artifact_turbo_overlay_toast__";
-  const STORAGE_KEY = "__githubArtifactTurboOverlayStore__::v1.1.1";
+  const STORAGE_KEY = "__githubArtifactTurboOverlayStore__::v1.1.2";
   const DEFAULT_WORKER_BASE = "https://xiazai.yswwsy.workers.dev";
   const DEFAULT_PANEL_PAGE = "https://pdahd.github.io/Beautiful/";
   const GITHUB_HOST_RE = /(^|\.)github\.com$/i;
@@ -37,6 +37,7 @@
       panelPage: DEFAULT_PANEL_PAGE,
 
       workerAlive: false,
+      workerBlocked: false,
       mode: "account", // run | repo | account
       items: [],
       repos: [],
@@ -47,7 +48,8 @@
         owner: "",
         repo: "",
         runId: "",
-        sourceUrl: location.href
+        sourceUrl: location.href,
+        isGitHub: false
       },
 
       activeContext: {
@@ -98,26 +100,30 @@
       this.buildUI();
       this.installResizeHandler();
       this.updateUI();
-
-      void this.pingWorker();
-      void this.loadSyncStatus(true);
-      void this.loadReposIndex(true);
-      void this.refreshData(false);
-
+      void this.boot();
       window[GLOBAL_KEY] = {
         name: this.name,
         version: this.version,
         api: this
       };
-
       this.toast("已加载悬浮面板");
+    },
+
+    async boot() {
+      const ok = await this.pingWorker();
+      if (!ok) {
+        this.updateUI();
+        return;
+      }
+      await this.loadSyncStatus(true);
+      await this.loadReposIndex(true);
+      await this.refreshData(false);
     },
 
     destroy() {
       if (this.boundResize) {
         window.removeEventListener("resize", this.boundResize, false);
       }
-
       clearTimeout(this._toastTimer);
       clearTimeout(this._titleTapTimer);
       clearInterval(this._syncPollTimer);
@@ -176,26 +182,21 @@
         if (typeof data.workerBase === "string" && data.workerBase.trim()) {
           this.state.workerBase = data.workerBase.trim();
         }
-
         if (typeof data.panelPage === "string" && data.panelPage.trim()) {
           this.state.panelPage = data.panelPage.trim();
         }
-
         if (data.filters && typeof data.filters === "object") {
           this.state.filters.query = String(data.filters.query || "");
           this.state.filters.includeExpired = !!data.filters.includeExpired;
           this.state.filters.sort = String(data.filters.sort || "created_at");
           this.state.filters.order = String(data.filters.order || "desc");
         }
-
         if (data.pagination && typeof data.pagination === "object") {
           this.state.pagination.perPage = Number(data.pagination.perPage) || 20;
         }
-
         if (typeof data.selectedRepoFullName === "string") {
           this.state.selectedRepoFullName = data.selectedRepoFullName;
         }
-
         if (data.ui && typeof data.ui === "object") {
           if (Number.isFinite(data.ui.x)) this.state.ui.x = data.ui.x;
           if (Number.isFinite(data.ui.y)) this.state.ui.y = data.ui.y;
@@ -227,17 +228,18 @@
 
     parseCurrentContext() {
       const parts = location.pathname.split("/").filter(Boolean);
+      const isGitHub = GITHUB_HOST_RE.test(location.hostname);
       let owner = "";
       let repo = "";
       let runId = "";
 
-      if (GITHUB_HOST_RE.test(location.hostname) && parts.length >= 2) {
+      if (isGitHub && parts.length >= 2) {
         owner = parts[0];
         repo = parts[1];
       }
 
       if (
-        GITHUB_HOST_RE.test(location.hostname) &&
+        isGitHub &&
         parts.length >= 5 &&
         parts[2] === "actions" &&
         parts[3] === "runs" &&
@@ -250,7 +252,8 @@
         owner,
         repo,
         runId,
-        sourceUrl: location.href
+        sourceUrl: location.href,
+        isGitHub
       };
     },
 
@@ -293,11 +296,6 @@
       return "全账户";
     },
 
-    currentFullName() {
-      const { owner, repo } = this.state.activeContext;
-      return owner && repo ? `${owner}/${repo}` : "";
-    },
-
     normalizeWorkerBase(value) {
       const s = String(value || "").trim();
       if (!s) throw new Error("Worker 地址不能为空");
@@ -323,11 +321,17 @@
     },
 
     async fetchJSON(path, params = {}, init = {}) {
-      const res = await fetch(this.apiUrl(path, params), {
-        method: init.method || "GET",
-        headers: init.headers || {},
-        body: init.body
-      });
+      let res;
+      try {
+        res = await fetch(this.apiUrl(path, params), {
+          method: init.method || "GET",
+          headers: init.headers || {},
+          body: init.body
+        });
+      } catch (err) {
+        this.state.workerBlocked = true;
+        throw new Error(`无法连接 Worker，可能被当前网页策略拦截：${err.message || err}`);
+      }
 
       const text = await res.text();
       let data = null;
@@ -337,6 +341,7 @@
         throw new Error(data?.error || `请求失败：${res.status}${text ? ` ｜ ${text.slice(0, 200)}` : ""}`);
       }
 
+      this.state.workerBlocked = false;
       return data;
     },
 
@@ -395,9 +400,7 @@
             page,
             per_page: 200
           });
-          if (Array.isArray(next.items)) {
-            items.push(...next.items);
-          }
+          if (Array.isArray(next.items)) items.push(...next.items);
         }
 
         items.sort((a, b) => String(a.full_name).localeCompare(String(b.full_name)));
@@ -1031,19 +1034,19 @@
               <div class="gato-substatus"></div>
 
               <div class="gato-section">
-                <span>当前网页上下文</span>
-                <span class="gato-section-meta">非 GitHub 页面也可用</span>
+                <span>当前网页信息</span>
+                <span class="gato-section-meta">始终显示当前页面 URL</span>
               </div>
               <div class="gato-info" data-role="context-info"></div>
 
               <div class="gato-section">
                 <span>模式与仓库</span>
-                <span class="gato-section-meta">轻量悬浮版</span>
+                <span class="gato-section-meta">精简稳定版</span>
               </div>
 
               <div class="gato-form-grid">
                 <div class="gato-field" style="grid-column:1/-1;">
-                  <label>Worker Base URL</label>
+                  <label>Worker 地址</label>
                   <input type="text" data-role="worker-base" placeholder="https://xiazai.yswwsy.workers.dev">
                 </div>
 
@@ -1127,8 +1130,7 @@
               <div class="gato-list" data-role="list"></div>
 
               <div class="gato-note">
-                说明：GitHub 页面建议使用完整 HTML 面板；其它网站优先使用本悬浮版。
-                若目标站点拦截脚本，可自动回退打开完整面板页。
+                若当前网站拦截 Worker 请求，本悬浮版会提示错误；此时请点击右上角 ↗ 打开完整面板。
               </div>
             </div>
           </section>
@@ -1304,6 +1306,75 @@
       this.applyFloatingLayout({ save: false });
     },
 
+    updateUI() {
+      if (!this.state.uiReady) return;
+
+      this.refs.panel.classList.toggle("hidden", !this.state.panelOpen);
+      this.refs.fab.classList.toggle("hidden", this.state.panelOpen);
+      this.refs.panel.classList.toggle("is-collapsed", !!this.state.ui.collapsed);
+      this.refs.fab.textContent = this.state.pagination.totalCount > 0 ? `工件 ${this.state.pagination.totalCount}` : "工件";
+
+      const cur = this.state.currentContext;
+      const act = this.state.activeContext;
+      const sync = this.state.syncStatus;
+      const modeLabel = this.modeLabel();
+
+      this.refs.titleSummary.textContent =
+        `${modeLabel} ｜ 当前页 ${this.state.items.length} 条 / 总数 ${this.state.pagination.totalCount}\n` +
+        `Worker ${this.state.workerAlive ? "在线" : "离线"}${this.state.loading ? " ｜ 加载中..." : ""}`;
+
+      this.refs.status.textContent =
+        `当前模式：${modeLabel}\n` +
+        `活动上下文：${act.owner && act.repo ? `${act.owner}/${act.repo}` : "全账户"}${act.runId ? ` ｜ run ${act.runId}` : ""}\n` +
+        `当前网页：${location.href}`;
+
+      let sub =
+        `当前网页类型：${cur.isGitHub ? "GitHub 页面" : "非 GitHub 页面"}\n` +
+        `来源识别：${cur.owner && cur.repo ? `${cur.owner}/${cur.repo}` : "无 GitHub 仓库上下文"}${cur.runId ? ` ｜ run ${cur.runId}` : ""}\n` +
+        `所选仓库：${this.state.selectedRepoFullName || "无"}\n` +
+        `Worker：${this.state.workerBase}`;
+
+      if (this.state.workerBlocked) {
+        sub += `\n警告：当前网站可能拦截了到 Worker 的请求，请改用右上角 ↗ 打开完整面板。`;
+      }
+
+      if (this.state.lastError) {
+        sub += `\n最近错误：${this.state.lastError}`;
+      }
+
+      this.refs.substatus.textContent = sub;
+
+      this.refs.contextInfo.textContent =
+        `当前页面 URL：${cur.sourceUrl}\n` +
+        `解析结果：${cur.owner && cur.repo ? `${cur.owner}/${cur.repo}` : "无仓库"}${cur.runId ? ` ｜ run ${cur.runId}` : ""}\n` +
+        (sync
+          ? `索引状态：仓库 ${sync.repo_count} ｜ 工件 ${sync.artifact_count}${sync.latest_job ? ` ｜ 最近任务 ${sync.latest_job.status}` : ""}`
+          : "索引状态：未加载");
+
+      this.refs.entriesMeta.textContent =
+        `共 ${this.state.pagination.totalCount} 条 ｜ 当前页 ${this.state.items.length} 条 ｜ 已选 ${this.state.selectedIds.size} 条`;
+
+      this.refs.pageInfo.textContent =
+        `页码：${this.state.pagination.page} / ${this.state.pagination.totalPages}\n` +
+        `筛选：query=${this.state.filters.query || "(空)"} ｜ expired=${this.state.filters.includeExpired ? "含" : "不含"} ｜ sort=${this.state.filters.sort} ${this.state.filters.order}`;
+
+      this.refs.workerBase.value = this.state.workerBase;
+      this.refs.query.value = this.state.filters.query;
+      this.refs.sort.value = this.state.filters.sort;
+      this.refs.order.value = this.state.filters.order;
+      this.refs.perPage.value = String(this.state.pagination.perPage);
+      this.refs.includeExpired.checked = this.state.filters.includeExpired;
+
+      if (this.state.repos.length) {
+        if (this.refs.repoSelect.value !== this.state.selectedRepoFullName) {
+          this.refs.repoSelect.value = this.state.selectedRepoFullName || this.state.repos[0].full_name;
+        }
+      }
+
+      this.renderItems();
+      this.applyFloatingLayout({ save: false });
+    },
+
     installResizeHandler() {
       if (this.boundResize) {
         window.removeEventListener("resize", this.boundResize, false);
@@ -1331,7 +1402,6 @@
         if (!wrap || !panel || !fab) return;
 
         panel.style.width = `${this.getPreferredWidth()}px`;
-
         const el = this.getVisibleEl();
         if (!el) return;
 
