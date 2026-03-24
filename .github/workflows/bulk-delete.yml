@@ -1,103 +1,245 @@
-name: 🛡️ 万能批量删除工具 (15框全场景覆盖版)
+name: "🛡️ 万能批量删除工具 v2.0.0（15框全覆盖增强版）"
+
 on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: '【⚠️安全预览】勾选则仅列出匹配文件而不真正删除。建议先勾选运行一次确认路径！'
+        description: "【⚠️安全预览】true=仅预览匹配结果，不执行删除；false=真实删除并提交推送。第一次务必先用 true。"
         type: boolean
         default: true
+
       file_box_1:
-        description: '【删根目录单个文件夹】直接写名。示例: temp_data/'
+        description: "【根目录单个文件】示例：README.md"
         required: false
+
       file_box_2:
-        description: '【删根目录多个文件夹】空格分隔。示例: temp_data/ old_logs/'
+        description: "【根目录多个文件】空格分隔。示例：README.md LICENSE .gitignore"
         required: false
+
       file_box_3:
-        description: '【同时删两个文件夹】示例: "dir_a/" "dir_b/"'
+        description: "【根目录单个文件夹】示例：temp_data/ 或 dist/"
         required: false
+
       file_box_4:
-        description: '【带空格的路径】必须用双引号。示例: "My Photos/"'
+        description: "【根目录多个文件夹】空格分隔。示例：temp_data/ old_logs/ cache/"
         required: false
+
       file_box_5:
-        description: '【深层路径文件】示例: docs/2024/final_report.pdf'
+        description: "【深层单个文件】示例：docs/2024/final_report.pdf"
         required: false
+
       file_box_6:
-        description: '【当前目录下批量删除】示例: logs/*.log'
+        description: "【深层单个文件夹】示例：docs/old_versions/ 或 assets/demo/"
         required: false
+
       file_box_7:
-        description: '【全仓库递归批量删除】示例: **/*.tmp'
+        description: "【深层多个路径】可混合文件/文件夹。示例：docs/old.pdf src/tmp/ assets/demo/"
         required: false
+
       file_box_8:
-        description: '【只清空内容不删目录】示例: cache/*'
+        description: "【当前目录通配删除】示例：*.log *.tmp *.bak"
         required: false
+
       file_box_9:
-        description: '输入框 9'
+        description: "【全仓库递归通配删除】示例：**/*.tmp **/*.cache **/*.bak"
         required: false
+
       file_box_10:
-        description: '输入框 10'
+        description: "【清空目录内容但保留目录】示例：cache/* build/* uploads/*"
         required: false
+
       file_box_11:
-        description: '输入框 11'
+        description: "【按目录名递归删目录】示例：**/__pycache__/ **/.ipynb_checkpoints/ **/node_modules/"
         required: false
+
       file_box_12:
-        description: '输入框 12'
+        description: "【按文件类型/模式删除】示例：images/*.png logs/**/*.log reports/**/*.csv"
         required: false
+
       file_box_13:
-        description: '输入框 13'
+        description: "【带空格的单个路径】必须加双引号。示例：\"My Photos/\" 或 \"docs/final report.pdf\""
         required: false
+
       file_box_14:
-        description: '输入框 14'
+        description: "【带空格的多个路径】每个目标都要加双引号。示例：\"My Photos/\" \"old docs/report 1.pdf\""
         required: false
+
       file_box_15:
-        description: '输入框 15'
+        description: "【终极混合框】任意文件/文件夹/通配符混合，带空格路径必须加双引号。示例：\"My Photos/\" cache/* **/*.bak docs/old/ dist/*.map"
         required: false
+
+permissions:
+  contents: write
 
 jobs:
   delete-process:
     runs-on: ubuntu-latest
+
     steps:
       - name: 检出仓库代码
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
 
-      - name: 执行智能匹配与删除
+      - name: 解析删除规则并执行预览/删除
+        shell: bash
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          BOX1: ${{ github.event.inputs.file_box_1 }}
+          BOX2: ${{ github.event.inputs.file_box_2 }}
+          BOX3: ${{ github.event.inputs.file_box_3 }}
+          BOX4: ${{ github.event.inputs.file_box_4 }}
+          BOX5: ${{ github.event.inputs.file_box_5 }}
+          BOX6: ${{ github.event.inputs.file_box_6 }}
+          BOX7: ${{ github.event.inputs.file_box_7 }}
+          BOX8: ${{ github.event.inputs.file_box_8 }}
+          BOX9: ${{ github.event.inputs.file_box_9 }}
+          BOX10: ${{ github.event.inputs.file_box_10 }}
+          BOX11: ${{ github.event.inputs.file_box_11 }}
+          BOX12: ${{ github.event.inputs.file_box_12 }}
+          BOX13: ${{ github.event.inputs.file_box_13 }}
+          BOX14: ${{ github.event.inputs.file_box_14 }}
+          BOX15: ${{ github.event.inputs.file_box_15 }}
         run: |
-          shopt -s globstar # 开启递归通配符支持
-          
-          # 提取 15 个输入框的所有内容
-          RAW_ALL="${{ github.event.inputs.file_box_1 }} ${{ github.event.inputs.file_box_2 }} ${{ github.event.inputs.file_box_3 }} ${{ github.event.inputs.file_box_4 }} ${{ github.event.inputs.file_box_5 }} ${{ github.event.inputs.file_box_6 }} ${{ github.event.inputs.file_box_7 }} ${{ github.event.inputs.file_box_8 }} ${{ github.event.inputs.file_box_9 }} ${{ github.event.inputs.file_box_10 }} ${{ github.event.inputs.file_box_11 }} ${{ github.event.inputs.file_box_12 }} ${{ github.event.inputs.file_box_13 }} ${{ github.event.inputs.file_box_14 }} ${{ github.event.inputs.file_box_15 }}"
-          
-          # 使用 xargs 保证能正确解析 "双引号内的空格"
-          echo "$RAW_ALL" | xargs -n 1 echo | while read -r pattern; do
-            [ -z "$pattern" ] && continue
-            
-            # 扩展通配符并查找实体 (ls -d 可以同时处理文件和文件夹)
-            targets=$(ls -d $pattern 2>/dev/null || true)
-            
-            if [ -z "$targets" ]; then
-              echo "⚠️ 未找到匹配路径: $pattern"
-              continue
-            fi
+          set -Eeuo pipefail
 
-            for item in $targets; do
-              if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-                echo "🔍 [预览] 发现匹配项: $item"
-              else
-                git rm -rf "$item"
-                echo "✅ [执行] 已标记删除: $item"
-              fi
-            done
-          done
+          python3 - <<'PY'
+          import os
+          import shlex
+          import glob
+          import pathlib
+          import sys
+
+          root = pathlib.Path(".").resolve()
+          dry_run = os.environ.get("DRY_RUN", "true").lower() == "true"
+
+          raw_boxes = [os.environ.get(f"BOX{i}", "") for i in range(1, 16)]
+
+          patterns = []
+          for idx, raw in enumerate(raw_boxes, start=1):
+            raw = (raw or "").strip()
+            if not raw:
+              continue
+            try:
+              tokens = shlex.split(raw)
+            except ValueError as e:
+              print(f"❌ 输入框 {idx} 解析失败：{e}", file=sys.stderr)
+              sys.exit(1)
+
+            for token in tokens:
+              token = token.strip()
+              if token:
+                patterns.append((idx, token))
+
+          if not patterns:
+            print("ℹ️ 没有提供任何删除规则，任务结束。")
+            sys.exit(0)
+
+          print("📦 已解析删除规则：")
+          for idx, token in patterns:
+            print(f"  - [框{idx}] {token}")
+
+          matched = []
+          seen = set()
+
+          for idx, pattern in patterns:
+            found = glob.glob(pattern, recursive=True)
+
+            if not found:
+              print(f"⚠️ [框{idx}] 未匹配到：{pattern}")
+              continue
+
+            for p in found:
+              if p in ("", ".", "./", "..", "../", "/"):
+                print(f"⛔ 跳过危险路径：{p}")
+                continue
+
+              pp = pathlib.Path(p)
+
+              try:
+                resolved = pp.resolve()
+              except FileNotFoundError:
+                continue
+
+              if resolved == root:
+                print(f"⛔ 跳过仓库根目录：{p}")
+                continue
+
+              try:
+                rel = resolved.relative_to(root)
+              except ValueError:
+                print(f"⛔ 跳过仓库外路径：{p}")
+                continue
+
+              rels = rel.as_posix()
+
+              if rels == ".git" or rels.startswith(".git/"):
+                print(f"⛔ 跳过 Git 元数据目录：{rels}")
+                continue
+
+              if rels not in seen:
+                seen.add(rels)
+                matched.append(rels)
+
+          if not matched:
+            print("ℹ️ 没有任何有效匹配，任务结束。")
+            sys.exit(0)
+
+          # 深层路径优先删，避免父目录先删后子路径重复报错
+          matched.sort(key=lambda s: (s.count("/"), s), reverse=True)
+
+          print("")
+          print("🎯 有效匹配列表：")
+          for p in matched:
+            print(f"  - {p}")
+
+          with open(".delete_targets.txt", "w", encoding="utf-8") as f:
+            for p in matched:
+              f.write(p + "\n")
+
+          print("")
+          if dry_run:
+            print(f"🔍 预览模式：共匹配 {len(matched)} 项，不执行删除。")
+          else:
+            print(f"🗑️ 执行模式：共匹配 {len(matched)} 项，开始删除。")
+          PY
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            exit 0
+          fi
+
+          if [ ! -f .delete_targets.txt ]; then
+            echo "ℹ️ 没有生成删除清单，任务结束。"
+            exit 0
+          fi
+
+          echo ""
+          echo "🧹 开始执行删除..."
+          while IFS= read -r target; do
+            [ -z "$target" ] && continue
+            rm -rf -- "$target"
+            echo "✅ 已删除：$target"
+          done < .delete_targets.txt
+
+          git add -A
+          echo ""
+          echo "📌 已使用 git add -A 标记删除变更。"
 
       - name: 提交并推送至仓库
         if: github.event.inputs.dry_run == 'false'
+        shell: bash
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global core.quotepath false
-          
-          if ! git diff --cached --exit-code --quiet; then
-            git commit -m "Actions: 自动批量清理指定文件/文件夹 [skip ci]"
-            git push
-          else
-            echo "💡 提示：没有任何文件被修改，跳过推送。"
+          set -Eeuo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config core.quotepath false
+
+          if git diff --cached --quiet; then
+            echo "💡 没有任何变更，跳过提交。"
+            exit 0
           fi
+
+          git commit -m "Actions: 自动批量清理指定文件/文件夹 [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
