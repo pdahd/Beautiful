@@ -1,10 +1,10 @@
 (() => {
   const SCRIPT_NAME = "GitHub Artifact Turbo Overlay";
-  const SCRIPT_VERSION = "v1.1.1";
+  const SCRIPT_VERSION = "v1.1.3";
   const GLOBAL_KEY = "__githubArtifactTurboOverlayApp__";
   const HOST_ID = "__github_artifact_turbo_overlay_host__";
   const TOAST_ID = "__github_artifact_turbo_overlay_toast__";
-  const STORAGE_KEY = "__githubArtifactTurboOverlayStore__::v1.1.2";
+  const STORAGE_KEY = "__githubArtifactTurboOverlayStore__::v1.1.3";
   const DEFAULT_WORKER_BASE = "https://xiazai.yswwsy.workers.dev";
   const DEFAULT_PANEL_PAGE = "https://pdahd.github.io/Beautiful/";
   const GITHUB_HOST_RE = /(^|\.)github\.com$/i;
@@ -101,11 +101,13 @@
       this.installResizeHandler();
       this.updateUI();
       void this.boot();
+
       window[GLOBAL_KEY] = {
         name: this.name,
         version: this.version,
         api: this
       };
+
       this.toast("已加载悬浮面板");
     },
 
@@ -124,6 +126,7 @@
       if (this.boundResize) {
         window.removeEventListener("resize", this.boundResize, false);
       }
+
       clearTimeout(this._toastTimer);
       clearTimeout(this._titleTapTimer);
       clearInterval(this._syncPollTimer);
@@ -182,21 +185,26 @@
         if (typeof data.workerBase === "string" && data.workerBase.trim()) {
           this.state.workerBase = data.workerBase.trim();
         }
+
         if (typeof data.panelPage === "string" && data.panelPage.trim()) {
           this.state.panelPage = data.panelPage.trim();
         }
+
         if (data.filters && typeof data.filters === "object") {
           this.state.filters.query = String(data.filters.query || "");
           this.state.filters.includeExpired = !!data.filters.includeExpired;
           this.state.filters.sort = String(data.filters.sort || "created_at");
           this.state.filters.order = String(data.filters.order || "desc");
         }
+
         if (data.pagination && typeof data.pagination === "object") {
           this.state.pagination.perPage = Number(data.pagination.perPage) || 20;
         }
+
         if (typeof data.selectedRepoFullName === "string") {
           this.state.selectedRepoFullName = data.selectedRepoFullName;
         }
+
         if (data.ui && typeof data.ui === "object") {
           if (Number.isFinite(data.ui.x)) this.state.ui.x = data.ui.x;
           if (Number.isFinite(data.ui.y)) this.state.ui.y = data.ui.y;
@@ -335,7 +343,9 @@
 
       const text = await res.text();
       let data = null;
-      try { data = text ? JSON.parse(text) : null; } catch {}
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {}
 
       if (!res.ok || (data && data.ok === false)) {
         throw new Error(data?.error || `请求失败：${res.status}${text ? ` ｜ ${text.slice(0, 200)}` : ""}`);
@@ -517,7 +527,11 @@
 
       this.state.selectedRepoFullName = full;
       this.state.mode = "repo";
-      this.state.activeContext = { owner, repo, runId: "" };
+      this.state.activeContext = {
+        owner,
+        repo,
+        runId: ""
+      };
       this.state.pagination.page = 1;
       this.saveStore();
       this.updateUI();
@@ -633,7 +647,6 @@
     prevPage() {
       if (this.state.mode === "run") return;
       if (this.state.pagination.page <= 1) return;
-
       this.state.pagination.page -= 1;
       this.updateUI();
       void this.refreshData(false);
@@ -642,7 +655,6 @@
     nextPage() {
       if (this.state.mode === "run") return;
       if (this.state.pagination.page >= this.state.pagination.totalPages) return;
-
       this.state.pagination.page += 1;
       this.updateUI();
       void this.refreshData(false);
@@ -1158,6 +1170,14 @@
       this.refs.pageInfo = shadow.querySelector('[data-role="page-info"]');
       this.refs.list = shadow.querySelector('[data-role="list"]');
 
+      this.refs.btnUseRun = shadow.querySelector('[data-action="use-run"]');
+      this.refs.btnUseRepo = shadow.querySelector('[data-action="use-repo"]');
+      this.refs.btnUseAccount = shadow.querySelector('[data-action="use-account"]');
+      this.refs.btnUseSelectedRepo = shadow.querySelector('[data-action="use-selected-repo"]');
+      this.refs.btnPrevPage = shadow.querySelector('[data-action="prev-page"]');
+      this.refs.btnNextPage = shadow.querySelector('[data-action="next-page"]');
+      this.refs.btnSyncRepo = shadow.querySelector('[data-action="sync-repo"]');
+
       this.refs.workerBase.value = this.state.workerBase;
       this.refs.query.value = this.state.filters.query;
       this.refs.sort.value = this.state.filters.sort;
@@ -1195,20 +1215,22 @@
       });
 
       shadow.querySelector('[data-action="load-repos"]').addEventListener("click", () => void this.loadReposIndex(false));
-      shadow.querySelector('[data-action="use-run"]').addEventListener("click", () => this.switchToCurrentRun());
-      shadow.querySelector('[data-action="use-repo"]').addEventListener("click", () => this.switchToCurrentRepo());
-      shadow.querySelector('[data-action="use-account"]').addEventListener("click", () => this.switchToAccount());
-      shadow.querySelector('[data-action="use-selected-repo"]').addEventListener("click", () => this.switchToSelectedRepo());
+
+      this.refs.btnUseRun.addEventListener("click", () => this.switchToCurrentRun());
+      this.refs.btnUseRepo.addEventListener("click", () => this.switchToCurrentRepo());
+      this.refs.btnUseAccount.addEventListener("click", () => this.switchToAccount());
+
+      this.refs.btnUseSelectedRepo.addEventListener("click", () => this.switchToSelectedRepo());
       shadow.querySelector('[data-action="refresh"]').addEventListener("click", () => void this.refreshData(false));
-      shadow.querySelector('[data-action="sync-repo"]').addEventListener("click", () => void this.syncCurrentRepo());
+      this.refs.btnSyncRepo.addEventListener("click", () => void this.syncCurrentRepo());
       shadow.querySelector('[data-action="sync-account"]').addEventListener("click", () => void this.syncAccount());
       shadow.querySelector('[data-action="copy-current"]').addEventListener("click", () => void this.copyCurrentLinks());
       shadow.querySelector('[data-action="copy-selected"]').addEventListener("click", () => void this.copySelectedLinks());
       shadow.querySelector('[data-action="export-txt"]').addEventListener("click", () => this.exportTXT());
       shadow.querySelector('[data-action="export-json"]').addEventListener("click", () => this.exportJSON());
       shadow.querySelector('[data-action="clear-selection"]').addEventListener("click", () => this.clearSelection());
-      shadow.querySelector('[data-action="prev-page"]').addEventListener("click", () => this.prevPage());
-      shadow.querySelector('[data-action="next-page"]').addEventListener("click", () => this.nextPage());
+      this.refs.btnPrevPage.addEventListener("click", () => this.prevPage());
+      this.refs.btnNextPage.addEventListener("click", () => this.nextPage());
 
       this.refs.query.addEventListener("change", () => {
         this.state.filters.query = this.refs.query.value.trim();
@@ -1370,6 +1392,14 @@
           this.refs.repoSelect.value = this.state.selectedRepoFullName || this.state.repos[0].full_name;
         }
       }
+
+      this.refs.btnUseRun.disabled = !(cur.owner && cur.repo && cur.runId);
+      this.refs.btnUseRepo.disabled = !(cur.owner && cur.repo);
+      this.refs.btnUseAccount.disabled = false;
+      this.refs.btnUseSelectedRepo.disabled = !this.state.repos.length || !this.state.selectedRepoFullName;
+      this.refs.btnSyncRepo.disabled = !(act.owner && act.repo);
+      this.refs.btnPrevPage.disabled = this.state.mode === "run" || this.state.pagination.page <= 1 || this.state.loading;
+      this.refs.btnNextPage.disabled = this.state.mode === "run" || this.state.pagination.page >= this.state.pagination.totalPages || this.state.loading;
 
       this.renderItems();
       this.applyFloatingLayout({ save: false });
