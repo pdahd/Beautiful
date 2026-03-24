@@ -3,10 +3,51 @@ name: 手动批量删除文件
 on:
   workflow_dispatch:
     inputs:
-      files_to_delete:
-        description: '输入要删除的文件路径（多个文件用空格或换行分隔）'
-        required: true
-        default: 'file1.txt folder/file2.js'
+      file_box_1:
+        description: '输入框 1 (支持空格分隔多个文件)'
+        required: false
+      file_box_2:
+        description: '输入框 2'
+        required: false
+      file_box_3:
+        description: '输入框 3'
+        required: false
+      file_box_4:
+        description: '输入框 4'
+        required: false
+      file_box_5:
+        description: '输入框 5'
+        required: false
+      file_box_6:
+        description: '输入框 6'
+        required: false
+      file_box_7:
+        description: '输入框 7'
+        required: false
+      file_box_8:
+        description: '输入框 8'
+        required: false
+      file_box_9:
+        description: '输入框 9'
+        required: false
+      file_box_10:
+        description: '输入框 10'
+        required: false
+      file_box_11:
+        description: '输入框 11'
+        required: false
+      file_box_12:
+        description: '输入框 12'
+        required: false
+      file_box_13:
+        description: '输入框 13'
+        required: false
+      file_box_14:
+        description: '输入框 14'
+        required: false
+      file_box_15:
+        description: '输入框 15'
+        required: false
 
 jobs:
   delete-files:
@@ -17,13 +58,16 @@ jobs:
 
       - name: 执行删除操作
         run: |
-          # 将输入的空格或换行符转换为数组并循环删除
-          for file in ${{ github.event.inputs.files_to_delete }}; do
-            if [ -f "$file" ] || [ -d "$file" ]; then
+          # 汇总所有输入框的内容
+          ALL_FILES="${{ github.event.inputs.file_box_1 }} ${{ github.event.inputs.file_box_2 }} ${{ github.event.inputs.file_box_3 }} ${{ github.event.inputs.file_box_4 }} ${{ github.event.inputs.file_box_5 }} ${{ github.event.inputs.file_box_6 }} ${{ github.event.inputs.file_box_7 }} ${{ github.event.inputs.file_box_8 }} ${{ github.event.inputs.file_box_9 }} ${{ github.event.inputs.file_box_10 }} ${{ github.event.inputs.file_box_11 }} ${{ github.event.inputs.file_box_12 }} ${{ github.event.inputs.file_box_13 }} ${{ github.event.inputs.file_box_14 }} ${{ github.event.inputs.file_box_15 }}"
+          
+          # 循环处理每一个文件路径
+          for file in $ALL_FILES; do
+            if [ -e "$file" ]; then
               git rm -r "$file"
-              echo "已标记删除: $file"
+              echo "✅ 已标记删除: $file"
             else
-              echo "未找到文件: $file，跳过"
+              echo "⚠️ 未找到文件或目录: $file，跳过"
             fi
           done
 
@@ -31,6 +75,12 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global core.quotepath false  
-          git commit -m "Actions: 批量删除文件 [skip ci]" || echo "没有更改需要提交"
-          git push
+          git config --global core.quotepath false
+          
+          # 检查是否有文件被标记删除，避免 commit 失败
+          if ! git diff --cached --exit-code --quiet; then
+            git commit -m "Actions: 批量删除文件 [skip ci]"
+            git push
+          else
+            echo "没有识别到有效的文件路径，无需提交。"
+          fi
