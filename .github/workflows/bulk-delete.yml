@@ -31,5 +31,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global core.quotepath false  # 解决中文路径乱码显示
           git commit -m "Actions: 批量删除文件 [skip ci]" || echo "没有更改需要提交"
           git push
