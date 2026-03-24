@@ -1,31 +1,34 @@
-name: 手动批量删除文件
-
+name: 🛡️ 万能批量删除工具 (15框全场景覆盖版)
 on:
   workflow_dispatch:
     inputs:
+      dry_run:
+        description: '【⚠️安全预览】勾选则仅列出匹配文件而不真正删除。建议先勾选运行一次确认路径！'
+        type: boolean
+        default: true
       file_box_1:
-        description: '路径示例: folder/file.txt 或 sub/dir/ (支持空格分隔)'
+        description: '【删根目录单个文件夹】直接写名。示例: temp_data/'
         required: false
       file_box_2:
-        description: '支持通配符: logs/*.log'
+        description: '【删根目录多个文件夹】空格分隔。示例: temp_data/ old_logs/'
         required: false
       file_box_3:
-        description: '输入框 3'
+        description: '【同时删两个文件夹】示例: "dir_a/" "dir_b/"'
         required: false
       file_box_4:
-        description: '输入框 4'
+        description: '【带空格的路径】必须用双引号。示例: "My Photos/"'
         required: false
       file_box_5:
-        description: '输入框 5'
+        description: '【深层路径文件】示例: docs/2024/final_report.pdf'
         required: false
       file_box_6:
-        description: '输入框 6'
+        description: '【当前目录下批量删除】示例: logs/*.log'
         required: false
       file_box_7:
-        description: '输入框 7'
+        description: '【全仓库递归批量删除】示例: **/*.tmp'
         required: false
       file_box_8:
-        description: '输入框 8'
+        description: '【只清空内容不删目录】示例: cache/*'
         required: false
       file_box_9:
         description: '输入框 9'
@@ -50,39 +53,51 @@ on:
         required: false
 
 jobs:
-  delete-files:
+  delete-process:
     runs-on: ubuntu-latest
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v6
+      - name: 检出仓库代码
+        uses: actions/checkout@v4
 
-      - name: 执行删除操作
+      - name: 执行智能匹配与删除
         run: |
-          # 汇总 15 个输入框的内容并清理多余空格
-          RAW_INPUTS="${{ github.event.inputs.file_box_1 }} ${{ github.event.inputs.file_box_2 }} ${{ github.event.inputs.file_box_3 }} ${{ github.event.inputs.file_box_4 }} ${{ github.event.inputs.file_box_5 }} ${{ github.event.inputs.file_box_6 }} ${{ github.event.inputs.file_box_7 }} ${{ github.event.inputs.file_box_8 }} ${{ github.event.inputs.file_box_9 }} ${{ github.event.inputs.file_box_10 }} ${{ github.event.inputs.file_box_11 }} ${{ github.event.inputs.file_box_12 }} ${{ github.event.inputs.file_box_13 }} ${{ github.event.inputs.file_box_14 }} ${{ github.event.inputs.file_box_15 }}"
+          shopt -s globstar # 开启递归通配符支持
           
-          # 使用 shell 的 glob 扩展来处理路径和通配符
-          for pattern in $RAW_INPUTS; do
-            # 查找匹配的文件或目录
-            for file in $pattern; do
-              if [ -e "$file" ]; then
-                git rm -rf "$file"
-                echo "✅ 已标记删除: $file"
+          # 提取 15 个输入框的所有内容
+          RAW_ALL="${{ github.event.inputs.file_box_1 }} ${{ github.event.inputs.file_box_2 }} ${{ github.event.inputs.file_box_3 }} ${{ github.event.inputs.file_box_4 }} ${{ github.event.inputs.file_box_5 }} ${{ github.event.inputs.file_box_6 }} ${{ github.event.inputs.file_box_7 }} ${{ github.event.inputs.file_box_8 }} ${{ github.event.inputs.file_box_9 }} ${{ github.event.inputs.file_box_10 }} ${{ github.event.inputs.file_box_11 }} ${{ github.event.inputs.file_box_12 }} ${{ github.event.inputs.file_box_13 }} ${{ github.event.inputs.file_box_14 }} ${{ github.event.inputs.file_box_15 }}"
+          
+          # 使用 xargs 保证能正确解析 "双引号内的空格"
+          echo "$RAW_ALL" | xargs -n 1 echo | while read -r pattern; do
+            [ -z "$pattern" ] && continue
+            
+            # 扩展通配符并查找实体 (ls -d 可以同时处理文件和文件夹)
+            targets=$(ls -d $pattern 2>/dev/null || true)
+            
+            if [ -z "$targets" ]; then
+              echo "⚠️ 未找到匹配路径: $pattern"
+              continue
+            fi
+
+            for item in $targets; do
+              if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+                echo "🔍 [预览] 发现匹配项: $item"
               else
-                echo "⚠️ 跳过不存在的路径: $pattern"
+                git rm -rf "$item"
+                echo "✅ [执行] 已标记删除: $item"
               fi
             done
           done
 
-      - name: 提交并推送更改
+      - name: 提交并推送至仓库
+        if: github.event.inputs.dry_run == 'false'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global core.quotepath false
           
           if ! git diff --cached --exit-code --quiet; then
-            git commit -m "Actions: 批量删除文件/文件夹 [skip ci]"
+            git commit -m "Actions: 自动批量清理指定文件/文件夹 [skip ci]"
             git push
           else
-            echo "没有发现需要删除的有效文件。"
+            echo "💡 提示：没有任何文件被修改，跳过推送。"
           fi
