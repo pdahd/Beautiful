@@ -7,154 +7,146 @@
   <style>
     :root{
       --bg:#f3f4f6;
-      --card:#ffffff;
+      --card:#fff;
       --line:#e5e7eb;
       --text:#111827;
       --muted:#6b7280;
-      --primary:#111827;
       --soft:#f9fafb;
-      --blue:#2563eb;
+      --shadow:0 12px 36px rgba(0,0,0,.10);
       --green:#166534;
       --green-bg:#dcfce7;
       --red:#991b1b;
       --red-bg:#fee2e2;
-      --shadow:0 12px 36px rgba(0,0,0,.12);
-      --radius:16px;
+      --blue:#2563eb;
+      --blue-bg:#dbeafe;
+      --btn:#111827;
+      --btn-soft:#f3f4f6;
+      --radius:18px;
     }
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     body{padding:12px}
-    .app{max-width:1200px;margin:0 auto}
-    .hero{
-      background:linear-gradient(180deg,#ffffff,#f8fafc);
-      border:1px solid var(--line);
-      border-radius:20px;
-      box-shadow:var(--shadow);
-      padding:16px;
-      margin-bottom:12px;
-    }
-    .hero-head{
-      display:flex;
-      flex-wrap:wrap;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:10px;
-    }
-    .title{font-size:20px;font-weight:800;line-height:1.2}
-    .version{font-size:12px;color:var(--muted);margin-top:4px}
-    .summary{font-size:12px;color:#374151;white-space:pre-wrap}
-    .badges{display:flex;flex-wrap:wrap;gap:6px}
-    .badge{
-      display:inline-flex;align-items:center;gap:6px;
-      padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;
-      background:#e5e7eb;color:#111827
-    }
-    .badge.ok{background:var(--green-bg);color:var(--green)}
-    .badge.err{background:var(--red-bg);color:var(--red)}
-    .grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-      gap:12px;
-    }
-    .card{
+    .app{max-width:1280px;margin:0 auto}
+    .hero,.card{
       background:var(--card);
       border:1px solid var(--line);
       border-radius:var(--radius);
       box-shadow:var(--shadow);
-      padding:14px;
     }
-    .card.full{grid-column:1/-1}
-    .section-title{
-      display:flex;align-items:center;justify-content:space-between;gap:8px;
-      margin-bottom:10px;font-size:13px;font-weight:800;
+    .hero{padding:16px;margin-bottom:12px}
+    .hero-head{
+      display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px;
     }
-    .section-meta{font-size:11px;color:var(--muted);font-weight:600}
-    .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
-    .field label{font-size:11px;color:#4b5563;font-weight:800}
-    input[type="text"],select,textarea{
-      width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:12px;
-      background:#fff;color:var(--text);font-size:13px;
+    .title{font-size:22px;font-weight:900;line-height:1.2}
+    .version{font-size:12px;color:var(--muted);margin-top:4px}
+    .summary{font-size:12px;color:#374151;white-space:pre-wrap}
+    .badges{display:flex;gap:6px;flex-wrap:wrap}
+    .badge{
+      display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;
+      background:#e5e7eb;color:#111827;font-size:12px;font-weight:800
     }
-    textarea{min-height:72px;resize:vertical}
-    .check{display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;margin-top:4px}
-    .btns{
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-      gap:8px;
-    }
-    button{
-      border:none;border-radius:12px;padding:10px 12px;font-size:12px;font-weight:800;
-      cursor:pointer;background:var(--primary);color:#fff;
-    }
-    button.secondary{background:#f3f4f6;color:#111827}
-    button.warn{background:#b91c1c;color:#fff}
-    button:disabled{opacity:.5;cursor:default}
-    .mono{
-      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
-      word-break:break-all;
-    }
+    .badge.ok{background:var(--green-bg);color:var(--green)}
+    .badge.err{background:var(--red-bg);color:var(--red)}
     .info{
-      background:var(--soft);
       border:1px solid var(--line);
-      border-radius:12px;
+      background:var(--soft);
+      border-radius:14px;
       padding:10px 12px;
       font-size:12px;
       color:#374151;
       white-space:pre-wrap;
       word-break:break-word;
     }
-    .list{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      max-height:none;
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      gap:12px;
     }
+    .card{padding:14px}
+    .card.full{grid-column:1/-1}
+    .section-head{
+      display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;
+      font-size:13px;font-weight:900;
+    }
+    .section-meta{font-size:11px;color:var(--muted);font-weight:700}
+    .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+    .field label{font-size:11px;color:#4b5563;font-weight:900}
+    input[type="text"], select, textarea{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid #d1d5db;
+      border-radius:12px;
+      background:#fff;
+      color:var(--text);
+      font-size:13px;
+    }
+    textarea{min-height:72px;resize:vertical}
+    .check{display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;margin-top:2px}
+    .btns{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+      gap:8px;
+    }
+    button{
+      border:none;
+      border-radius:12px;
+      padding:10px 12px;
+      background:var(--btn);
+      color:#fff;
+      font-size:12px;
+      font-weight:900;
+      cursor:pointer;
+    }
+    button.secondary{background:var(--btn-soft);color:#111827}
+    button.warn{background:#b91c1c;color:#fff}
+    button:disabled{opacity:.5;cursor:default}
+    .list{display:flex;flex-direction:column;gap:10px}
     .item{
       border:1px solid var(--line);
-      border-radius:14px;
+      border-radius:16px;
       background:#fff;
       padding:10px;
     }
     .item.is-selected{
       border-color:var(--blue);
-      box-shadow:0 0 0 2px rgba(37,99,235,.08);
+      box-shadow:0 0 0 2px rgba(37,99,235,.10);
     }
     .item-head{
-      display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:8px;
+      display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;
     }
     .item-title{
-      display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;font-weight:800;
+      display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;font-weight:900;
     }
     .pill{
-      display:inline-flex;align-items:center;
-      padding:3px 8px;border-radius:999px;background:#e5e7eb;color:#111827;
-      font-size:11px;font-weight:800;
+      display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;
+      background:#e5e7eb;color:#111827;font-size:11px;font-weight:900
     }
     .pill.ok{background:var(--green-bg);color:var(--green)}
     .pill.err{background:var(--red-bg);color:var(--red)}
-    .item-actions{
-      display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;
-    }
+    .pill.repo{background:var(--blue-bg);color:#1d4ed8}
+    .item-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
     .mini{
-      border:none;border-radius:10px;padding:6px 8px;font-size:11px;font-weight:800;
-      background:#f3f4f6;color:#111827;cursor:pointer;
+      border:none;border-radius:10px;padding:6px 8px;background:#f3f4f6;color:#111827;
+      font-size:11px;font-weight:900;cursor:pointer;
     }
     .item-body{
-      display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;
-      font-size:12px;color:#374151;
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:8px;
     }
     .kv{
-      background:var(--soft);
       border:1px solid var(--line);
+      background:var(--soft);
       border-radius:10px;
       padding:8px 10px;
+      font-size:12px;
+      color:#374151;
     }
     .kv b{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
     .urlbox{
       grid-column:1/-1;
-      background:#f9fafb;
       border:1px solid var(--line);
+      background:#fafafa;
       border-radius:10px;
       padding:8px 10px;
       font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
@@ -171,16 +163,17 @@
       font-size:13px;
       line-height:1.7;
     }
-    .footer-note{
-      margin-top:12px;
-      color:var(--muted);
-      font-size:11px;
-      line-height:1.6;
+    .footer-note{font-size:11px;color:var(--muted);line-height:1.6;margin-top:10px}
+    .toast{
+      position:fixed;left:50%;top:18px;transform:translateX(-50%);
+      z-index:2147483647;background:rgba(0,0,0,.88);color:#fff;
+      padding:10px 14px;border-radius:12px;font:14px/1.45 sans-serif;
+      max-width:88vw;white-space:pre-wrap;box-shadow:0 4px 16px rgba(0,0,0,.3);
     }
-    @media (max-width: 720px){
+    @media (max-width:720px){
       body{padding:10px}
       .hero,.card{padding:12px}
-      .title{font-size:18px}
+      .title{font-size:19px}
       .btns{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
     }
   </style>
@@ -191,13 +184,13 @@
       <div class="hero-head">
         <div>
           <div class="title">GitHub Artifact Turbo Panel</div>
-          <div class="version">v1.0.0</div>
+          <div class="version">v1.0.1</div>
           <div class="summary" id="titleSummary"></div>
         </div>
         <div class="badges">
-          <div class="badge" id="badgeWorker">Worker 未检测</div>
-          <div class="badge" id="badgeMode">模式 -</div>
-          <div class="badge" id="badgeCount">结果 0</div>
+          <span class="badge" id="badgeWorker">Worker 未检测</span>
+          <span class="badge" id="badgeMode">模式 -</span>
+          <span class="badge" id="badgeCount">结果 0</span>
         </div>
       </div>
       <div class="info" id="topInfo"></div>
@@ -205,7 +198,7 @@
 
     <div class="grid">
       <section class="card full">
-        <div class="section-title">
+        <div class="section-head">
           <span>Worker 设置</span>
           <span class="section-meta">Cloudflare Worker + D1</span>
         </div>
@@ -222,9 +215,9 @@
       </section>
 
       <section class="card">
-        <div class="section-title">
+        <div class="section-head">
           <span>来源上下文</span>
-          <span class="section-meta">从 source 参数解析</span>
+          <span class="section-meta">source 参数 / 直开 root 均可</span>
         </div>
         <div class="field">
           <label for="sourceUrl">来源 GitHub 页面 URL</label>
@@ -240,19 +233,23 @@
       </section>
 
       <section class="card">
-        <div class="section-title">
+        <div class="section-head">
           <span>仓库与查询</span>
-          <span class="section-meta">Repo / Account 模式有效</span>
+          <span class="section-meta">全账户时自动提供仓库下拉菜单</span>
         </div>
+
         <div class="field">
-          <label for="repoPicker">仓库选择器（owner/repo）</label>
-          <input id="repoPicker" type="text" list="repoList" placeholder="owner/repo">
-          <datalist id="repoList"></datalist>
+          <label for="repoSelect">仓库下拉菜单</label>
+          <select id="repoSelect">
+            <option value="">（加载中或暂无仓库）</option>
+          </select>
         </div>
+
         <div class="field">
           <label for="query">搜索 artifact 名称</label>
           <input id="query" type="text" placeholder="例如 downloaded-videos">
         </div>
+
         <div class="field">
           <label for="sort">排序字段</label>
           <select id="sort">
@@ -264,6 +261,7 @@
             <option value="full_name">full_name</option>
           </select>
         </div>
+
         <div class="field">
           <label for="order">排序方向</label>
           <select id="order">
@@ -271,6 +269,7 @@
             <option value="asc">asc</option>
           </select>
         </div>
+
         <div class="field">
           <label for="perPage">每页数量</label>
           <select id="perPage">
@@ -280,12 +279,14 @@
             <option value="200">200</option>
           </select>
         </div>
+
         <label class="check">
           <input id="includeExpired" type="checkbox">
           包含过期工件
         </label>
+
         <div class="btns" style="margin-top:10px;">
-          <button id="btnUseRepoInput" class="secondary" type="button">使用仓库选择器</button>
+          <button id="btnUseSelectedRepo" class="secondary" type="button">切换到所选仓库</button>
           <button id="btnRefresh" class="secondary" type="button">刷新当前模式</button>
           <button id="btnSyncRepo" class="secondary" type="button">同步当前仓库</button>
           <button id="btnSyncAccount" class="warn" type="button">全账户同步</button>
@@ -293,7 +294,7 @@
       </section>
 
       <section class="card">
-        <div class="section-title">
+        <div class="section-head">
           <span>分页与导出</span>
           <span class="section-meta">链接复制 / 文件导出</span>
         </div>
@@ -308,12 +309,12 @@
           <button id="btnClearSelection" class="warn" type="button">清空选择</button>
         </div>
         <div class="footer-note">
-          当前 Run 模式使用 Worker 实时查询；当前 Repo / 全账户模式使用 Worker + D1 索引。
+          直接打开根路径时默认进入全账户模式；有 source 参数时自动识别当前 Run / Repo。
         </div>
       </section>
 
       <section class="card full">
-        <div class="section-title">
+        <div class="section-head">
           <span>结果列表</span>
           <span class="section-meta" id="entriesMeta">共 0 条</span>
         </div>
@@ -325,8 +326,8 @@
   <script>
     (() => {
       const APP_NAME = "GitHub Artifact Turbo Panel";
-      const APP_VERSION = "v1.0.0";
-      const STORAGE_KEY = "__githubArtifactTurboStandalone__";
+      const APP_VERSION = "v1.0.1";
+      const STORAGE_KEY = "__githubArtifactTurboStandalone_v101__";
       const DEFAULT_WORKER_BASE = "https://xiazai.yswwsy.workers.dev";
 
       const app = {
@@ -342,6 +343,7 @@
           sourceUrl: "",
           currentContext: { owner: "", repo: "", runId: "" },
           activeContext: { owner: "", repo: "", runId: "" },
+          selectedRepoFullName: "",
           filters: {
             query: "",
             includeExpired: false,
@@ -394,14 +396,13 @@
           this.refs.btnUseRepo = $("btnUseRepo");
           this.refs.btnUseAccount = $("btnUseAccount");
 
-          this.refs.repoPicker = $("repoPicker");
-          this.refs.repoList = $("repoList");
+          this.refs.repoSelect = $("repoSelect");
           this.refs.query = $("query");
           this.refs.sort = $("sort");
           this.refs.order = $("order");
           this.refs.perPage = $("perPage");
           this.refs.includeExpired = $("includeExpired");
-          this.refs.btnUseRepoInput = $("btnUseRepoInput");
+          this.refs.btnUseSelectedRepo = $("btnUseSelectedRepo");
           this.refs.btnRefresh = $("btnRefresh");
           this.refs.btnSyncRepo = $("btnSyncRepo");
           this.refs.btnSyncAccount = $("btnSyncAccount");
@@ -441,10 +442,7 @@
           this.refs.btnSyncStatus.addEventListener("click", () => void this.loadSyncStatus(true));
 
           this.refs.btnOpenSource.addEventListener("click", () => {
-            if (!this.state.sourceUrl) {
-              this.toast("没有来源页面 URL");
-              return;
-            }
+            if (!this.state.sourceUrl) return this.toast("没有来源页面 URL");
             window.open(this.state.sourceUrl, "_blank", "noopener,noreferrer");
           });
 
@@ -452,7 +450,13 @@
           this.refs.btnUseRepo.addEventListener("click", () => this.switchToCurrentRepo());
           this.refs.btnUseAccount.addEventListener("click", () => this.switchToAccount());
 
-          this.refs.btnUseRepoInput.addEventListener("click", () => this.switchToRepoInput());
+          this.refs.repoSelect.addEventListener("change", () => {
+            this.state.selectedRepoFullName = this.refs.repoSelect.value || "";
+            this.saveStore();
+            this.updateUI();
+          });
+
+          this.refs.btnUseSelectedRepo.addEventListener("click", () => this.switchToSelectedRepo());
           this.refs.btnRefresh.addEventListener("click", () => void this.refreshData(false));
           this.refs.btnSyncRepo.addEventListener("click", () => void this.syncCurrentRepo());
           this.refs.btnSyncAccount.addEventListener("click", () => void this.syncAccount());
@@ -501,12 +505,6 @@
             void this.refreshData(false);
           });
 
-          this.refs.repoPicker.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-              this.switchToRepoInput();
-            }
-          });
-
           this.refs.btnPrevPage.addEventListener("click", () => this.prevPage());
           this.refs.btnNextPage.addEventListener("click", () => this.nextPage());
           this.refs.btnCopyCurrent.addEventListener("click", () => void this.copyCurrentLinks());
@@ -534,15 +532,16 @@
               return;
             }
             if (action === "copy-link") {
-              await this.copyText(item.cf_download_url);
-              this.toast(`已复制链接\n${item.name}`);
+              try {
+                await this.copyText(item.cf_download_url);
+                this.toast(`已复制链接\n${item.name}`);
+              } catch (err) {
+                this.toast(`复制失败\n${err.message || err}`);
+              }
               return;
             }
             if (action === "open-run") {
-              if (!item.github_run_url) {
-                this.toast("该项没有 run 链接");
-                return;
-              }
+              if (!item.github_run_url) return this.toast("该项没有 run 链接");
               window.open(item.github_run_url, "_blank", "noopener,noreferrer");
             }
           });
@@ -558,16 +557,17 @@
             if (typeof data.workerBase === "string" && data.workerBase.trim()) {
               this.state.workerBase = data.workerBase.trim();
             }
-
             if (data.filters && typeof data.filters === "object") {
               this.state.filters.query = String(data.filters.query || "");
               this.state.filters.includeExpired = !!data.filters.includeExpired;
               this.state.filters.sort = String(data.filters.sort || "created_at");
               this.state.filters.order = String(data.filters.order || "desc");
             }
-
             if (data.pagination && typeof data.pagination === "object") {
               this.state.pagination.perPage = Number(data.pagination.perPage) || 50;
+            }
+            if (typeof data.selectedRepoFullName === "string") {
+              this.state.selectedRepoFullName = data.selectedRepoFullName;
             }
           } catch (err) {
             console.warn(err);
@@ -578,7 +578,8 @@
           localStorage.setItem(STORAGE_KEY, JSON.stringify({
             workerBase: this.state.workerBase,
             filters: { ...this.state.filters },
-            pagination: { perPage: this.state.pagination.perPage }
+            pagination: { perPage: this.state.pagination.perPage },
+            selectedRepoFullName: this.state.selectedRepoFullName
           }));
         },
 
@@ -593,7 +594,19 @@
         },
 
         toast(message) {
-          alert(`${APP_NAME} ${APP_VERSION}\n${message}`);
+          const old = document.querySelector(".toast");
+          if (old) old.remove();
+
+          const el = document.createElement("div");
+          el.className = "toast";
+          el.textContent = `${APP_NAME} ${APP_VERSION}\n${message}`;
+          document.body.appendChild(el);
+
+          clearTimeout(this._toastTimer);
+          this._toastTimer = setTimeout(() => {
+            const node = document.querySelector(".toast");
+            if (node) node.remove();
+          }, 2400);
         },
 
         normalizeWorkerBase(value) {
@@ -649,7 +662,6 @@
               owner = parts[0];
               repo = parts[1];
             }
-
             if (parts.length >= 5 && parts[2] === "actions" && parts[3] === "runs" && /^\d+$/.test(parts[4])) {
               runId = parts[4];
             }
@@ -665,11 +677,13 @@
           if (cur.owner && cur.repo && cur.runId) {
             this.state.mode = "run";
             this.state.activeContext = { ...cur };
+            this.state.selectedRepoFullName = `${cur.owner}/${cur.repo}`;
             return;
           }
           if (cur.owner && cur.repo) {
             this.state.mode = "repo";
             this.state.activeContext = { owner: cur.owner, repo: cur.repo, runId: "" };
+            this.state.selectedRepoFullName = `${cur.owner}/${cur.repo}`;
             return;
           }
           this.state.mode = "account";
@@ -678,8 +692,45 @@
 
         modeLabel() {
           if (this.state.mode === "run") return "当前 Run";
-          if (this.state.mode === "repo") return "当前/指定 Repo";
+          if (this.state.mode === "repo") return "指定仓库";
           return "全账户";
+        },
+
+        currentFullName() {
+          const { owner, repo } = this.state.activeContext;
+          return owner && repo ? `${owner}/${repo}` : "";
+        },
+
+        updateRepoSelectOptions() {
+          const select = this.refs.repoSelect;
+          const items = this.state.repos;
+
+          if (!items.length) {
+            select.innerHTML = `<option value="">（暂无仓库，请先加载仓库索引）</option>`;
+            select.disabled = true;
+            return;
+          }
+
+          select.innerHTML = items.map(r => {
+            const full = String(r.full_name || "");
+            return `<option value="${this.escapeHtml(full)}">${this.escapeHtml(full)}</option>`;
+          }).join("");
+
+          select.disabled = false;
+
+          const exists = items.some(r => r.full_name === this.state.selectedRepoFullName);
+          if (!exists) {
+            const preferred =
+              (this.state.currentContext.owner && this.state.currentContext.repo && `${this.state.currentContext.owner}/${this.state.currentContext.repo}`) ||
+              (this.state.activeContext.owner && this.state.activeContext.repo && `${this.state.activeContext.owner}/${this.state.activeContext.repo}`) ||
+              items[0].full_name;
+
+            this.state.selectedRepoFullName = preferred || "";
+          }
+
+          if (this.state.selectedRepoFullName) {
+            select.value = this.state.selectedRepoFullName;
+          }
         },
 
         async pingWorker() {
@@ -721,30 +772,26 @@
 
             items.sort((a, b) => String(a.full_name).localeCompare(String(b.full_name)));
             this.state.repos = items;
-            this.refs.repoList.innerHTML = items
-              .map(r => `<option value="${this.escapeHtml(r.full_name)}"></option>`)
-              .join("");
+            this.updateRepoSelectOptions();
+            this.saveStore();
             this.updateUI();
+
             if (!silent) this.toast(`已加载仓库索引\n共 ${items.length} 个仓库`);
           } catch (err) {
             if (!silent) this.toast(`加载仓库索引失败\n${err.message || err}`);
           }
         },
 
-        currentFullName() {
-          const { owner, repo } = this.state.activeContext;
-          return owner && repo ? `${owner}/${repo}` : "";
-        },
-
         switchToCurrentRun() {
           const cur = this.state.currentContext;
           if (!(cur.owner && cur.repo && cur.runId)) {
-            this.toast("来源 URL 不是 GitHub Actions run 页面");
-            return;
+            return this.toast("来源 URL 不是 GitHub Actions run 页面");
           }
           this.state.mode = "run";
           this.state.activeContext = { ...cur };
+          this.state.selectedRepoFullName = `${cur.owner}/${cur.repo}`;
           this.state.pagination.page = 1;
+          this.saveStore();
           this.updateUI();
           void this.refreshData(false);
         },
@@ -752,13 +799,14 @@
         switchToCurrentRepo() {
           const cur = this.state.currentContext;
           if (!(cur.owner && cur.repo)) {
-            this.toast("来源 URL 未识别到 owner/repo");
-            return;
+            return this.toast("来源 URL 未识别到 owner/repo");
           }
           this.state.mode = "repo";
           this.state.activeContext = { owner: cur.owner, repo: cur.repo, runId: "" };
+          this.state.selectedRepoFullName = `${cur.owner}/${cur.repo}`;
           this.state.pagination.page = 1;
-          this.refs.repoPicker.value = `${cur.owner}/${cur.repo}`;
+          this.saveStore();
+          this.updateRepoSelectOptions();
           this.updateUI();
           void this.refreshData(false);
         },
@@ -767,24 +815,32 @@
           this.state.mode = "account";
           this.state.activeContext = { owner: "", repo: "", runId: "" };
           this.state.pagination.page = 1;
+          if (!this.state.repos.length) {
+            void this.loadReposIndex(true);
+          } else {
+            this.updateRepoSelectOptions();
+          }
+          this.saveStore();
           this.updateUI();
           void this.refreshData(false);
         },
 
-        switchToRepoInput() {
-          const raw = String(this.refs.repoPicker.value || "").trim();
-          if (!raw.includes("/")) {
-            this.toast("仓库格式应为 owner/repo");
-            return;
+        switchToSelectedRepo() {
+          const full = String(this.refs.repoSelect.value || this.state.selectedRepoFullName || "").trim();
+          if (!full || !full.includes("/")) {
+            return this.toast("请先从下拉菜单选择仓库");
           }
-          const [owner, repo] = raw.split("/").map(s => s.trim()).filter(Boolean);
+
+          const [owner, repo] = full.split("/").map(s => s.trim()).filter(Boolean);
           if (!owner || !repo) {
-            this.toast("仓库格式应为 owner/repo");
-            return;
+            return this.toast("仓库格式无效");
           }
+
+          this.state.selectedRepoFullName = full;
           this.state.mode = "repo";
           this.state.activeContext = { owner, repo, runId: "" };
           this.state.pagination.page = 1;
+          this.saveStore();
           this.updateUI();
           void this.refreshData(false);
         },
@@ -793,6 +849,7 @@
           this.state.loading = true;
           this.state.lastError = "";
           this.updateUI();
+
           try {
             if (this.state.mode === "run") {
               await this.loadRunArtifacts();
@@ -863,8 +920,7 @@
         async syncCurrentRepo() {
           const ctx = this.state.activeContext;
           if (!(ctx.owner && ctx.repo)) {
-            this.toast("当前没有可同步的仓库");
-            return;
+            return this.toast("当前模式不是仓库模式，请先切换到所选仓库");
           }
           try {
             const data = await this.fetchJSON("/api/sync/repo", {
@@ -882,7 +938,10 @@
           try {
             const data = await this.fetchJSON("/api/sync/account", {}, { method: "POST" });
             this.toast(`已启动全账户同步\nJob: ${data.job_id}`);
-            setTimeout(() => void this.loadSyncStatus(), 1200);
+            setTimeout(async () => {
+              await this.loadSyncStatus();
+              await this.loadReposIndex(true);
+            }, 1200);
           } catch (err) {
             this.toast(`启动全账户同步失败\n${err.message || err}`);
           }
@@ -936,21 +995,17 @@
         },
 
         async copyText(text) {
-          try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              await navigator.clipboard.writeText(text);
-            } else {
-              const ta = document.createElement("textarea");
-              ta.value = text;
-              ta.style.cssText = "position:fixed;left:-9999px;top:0;";
-              document.body.appendChild(ta);
-              ta.select();
-              document.execCommand("copy");
-              ta.remove();
-            }
-          } catch (err) {
-            throw err;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            return;
           }
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.style.cssText = "position:fixed;left:-9999px;top:0;";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
         },
 
         exportCurrentTXT(items = this.state.items) {
@@ -972,10 +1027,7 @@
         },
 
         async copyCurrentLinks() {
-          if (!this.state.items.length) {
-            this.toast("当前没有结果");
-            return;
-          }
+          if (!this.state.items.length) return this.toast("当前没有结果");
           try {
             await this.copyText(this.exportCurrentTXT(this.state.items));
             this.toast(`已复制当前页链接\n共 ${this.state.items.length} 条`);
@@ -986,10 +1038,7 @@
 
         async copySelectedLinks() {
           const items = this.getSelectedItems();
-          if (!items.length) {
-            this.toast("未选择任何工件");
-            return;
-          }
+          if (!items.length) return this.toast("未选择任何工件");
           try {
             await this.copyText(this.exportCurrentTXT(items));
             this.toast(`已复制选中链接\n共 ${items.length} 条`);
@@ -1012,19 +1061,13 @@
         },
 
         exportTXT() {
-          if (!this.state.items.length) {
-            this.toast("当前没有结果");
-            return;
-          }
+          if (!this.state.items.length) return this.toast("当前没有结果");
           this.downloadTextFile(`github_artifacts_${Date.now()}.txt`, this.exportCurrentTXT(this.state.items));
           this.toast("已导出 TXT");
         },
 
         exportJSON() {
-          if (!this.state.items.length) {
-            this.toast("当前没有结果");
-            return;
-          }
+          if (!this.state.items.length) return this.toast("当前没有结果");
           this.downloadTextFile(
             `github_artifacts_${Date.now()}.json`,
             this.exportCurrentJSON(this.state.items),
@@ -1047,8 +1090,7 @@
           const n = Number(bytes || 0);
           if (!n) return "0 B";
           const units = ["B", "KB", "MB", "GB", "TB"];
-          let i = 0;
-          let v = n;
+          let i = 0, v = n;
           while (v >= 1024 && i < units.length - 1) {
             v /= 1024;
             i += 1;
@@ -1085,7 +1127,8 @@
                 <br>可尝试：
                 <br>1. 点击“当前 Run / 当前 Repo / 全账户”
                 <br>2. 点击“刷新当前模式”
-                <br>3. 先执行“全账户同步”
+                <br>3. 点击“全账户同步”
+                <br>4. 在全账户模式下从仓库下拉菜单中选择一个仓库，再点击“切换到所选仓库”
               </div>
             `;
             return;
@@ -1101,7 +1144,7 @@
                     <label class="pill"><input type="checkbox" data-pick-id="${this.escapeHtml(id)}" ${checked ? "checked" : ""}></label>
                     <span class="pill">${this.escapeHtml(item.name)}</span>
                     <span class="pill">#${this.escapeHtml(id)}</span>
-                    <span class="pill">${this.escapeHtml(item.full_name || `${item.owner}/${item.repo}`)}</span>
+                    <span class="pill repo">${this.escapeHtml(item.full_name || `${item.owner}/${item.repo}`)}</span>
                     ${item.expired ? `<span class="pill err">已过期</span>` : `<span class="pill ok">正常</span>`}
                   </div>
                   <div class="item-actions">
@@ -1125,8 +1168,8 @@
         updateUI() {
           const ctx = this.state.currentContext;
           const act = this.state.activeContext;
-          const modeLabel = this.modeLabel();
           const sync = this.state.syncStatus;
+          const modeLabel = this.modeLabel();
 
           this.refs.titleSummary.textContent =
             `${modeLabel} ｜ 当前页 ${this.state.items.length} 条 / 总数 ${this.state.pagination.totalCount}\n` +
@@ -1140,11 +1183,12 @@
           this.refs.topInfo.textContent =
             `当前模式：${modeLabel}\n` +
             `活动上下文：${act.owner && act.repo ? `${act.owner}/${act.repo}` : "全账户"}${act.runId ? ` ｜ run ${act.runId}` : ""}\n` +
+            `所选仓库：${this.state.selectedRepoFullName || "无"}\n` +
             `Worker：${this.state.workerBase}\n` +
             `最新错误：${this.state.lastError || "无"}`;
 
           this.refs.contextInfo.textContent =
-            `来源 URL：${this.state.sourceUrl || "无"}\n` +
+            `来源 URL：${this.state.sourceUrl || "无（直接打开 root）"}\n` +
             `识别结果：${ctx.owner && ctx.repo ? `${ctx.owner}/${ctx.repo}` : "无仓库"}${ctx.runId ? ` ｜ run ${ctx.runId}` : ""}\n` +
             (sync
               ? `索引状态：仓库 ${sync.repo_count} ｜ 工件 ${sync.artifact_count}${sync.latest_job ? ` ｜ 最近任务 ${sync.latest_job.status}` : ""}`
@@ -1162,11 +1206,17 @@
           this.refs.order.value = this.state.filters.order;
           this.refs.perPage.value = String(this.state.pagination.perPage);
           this.refs.includeExpired.checked = this.state.filters.includeExpired;
-          this.refs.repoPicker.value = this.currentFullName();
 
+          if (this.state.repos.length) {
+            if (this.refs.repoSelect.value !== this.state.selectedRepoFullName) {
+              this.refs.repoSelect.value = this.state.selectedRepoFullName || this.state.repos[0].full_name;
+            }
+          }
+
+          this.refs.btnOpenSource.disabled = !this.state.sourceUrl;
           this.refs.btnUseRun.disabled = !(ctx.owner && ctx.repo && ctx.runId);
           this.refs.btnUseRepo.disabled = !(ctx.owner && ctx.repo);
-          this.refs.btnOpenSource.disabled = !this.state.sourceUrl;
+          this.refs.btnUseSelectedRepo.disabled = !this.state.repos.length || !this.state.selectedRepoFullName;
           this.refs.btnSyncRepo.disabled = !(act.owner && act.repo);
           this.refs.btnPrevPage.disabled = this.state.mode === "run" || this.state.pagination.page <= 1 || this.state.loading;
           this.refs.btnNextPage.disabled = this.state.mode === "run" || this.state.pagination.page >= this.state.pagination.totalPages || this.state.loading;
