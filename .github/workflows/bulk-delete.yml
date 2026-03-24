@@ -1,13 +1,8 @@
-name: "🛡️ 万能批量删除工具 v2.0.0（15框全覆盖增强版）"
+name: "🗑️ 万能批量删除工具 v2.1.0（15框精简直删版）"
 
 on:
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: "【⚠️安全预览】true=仅预览匹配结果，不执行删除；false=真实删除并提交推送。第一次务必先用 true。"
-        type: boolean
-        default: true
-
       file_box_1:
         description: "【根目录单个文件】示例：README.md"
         required: false
@@ -21,7 +16,7 @@ on:
         required: false
 
       file_box_4:
-        description: "【根目录多个文件夹】空格分隔。示例：temp_data/ old_logs/ cache/"
+        description: "【根目录多个文件夹】空格分隔。示例：eee/ 444/ cache/"
         required: false
 
       file_box_5:
@@ -29,11 +24,11 @@ on:
         required: false
 
       file_box_6:
-        description: "【深层单个文件夹】示例：docs/old_versions/ 或 assets/demo/"
+        description: "【深层单个文件夹】示例：eee/444/ 或 docs/old_versions/"
         required: false
 
       file_box_7:
-        description: "【深层多个路径】可混合文件/文件夹。示例：docs/old.pdf src/tmp/ assets/demo/"
+        description: "【深层多个路径】可混合文件/文件夹。示例：docs/old.pdf eee/444/ assets/demo/"
         required: false
 
       file_box_8:
@@ -65,7 +60,7 @@ on:
         required: false
 
       file_box_15:
-        description: "【终极混合框】任意文件/文件夹/通配符混合，带空格路径必须加双引号。示例：\"My Photos/\" cache/* **/*.bak docs/old/ dist/*.map"
+        description: "【终极混合框】任意文件/文件夹/通配符混合，带空格路径必须加双引号。示例：eee/ 444/ \"My Photos/\" cache/* **/*.bak docs/old/ dist/*.map"
         required: false
 
 permissions:
@@ -77,30 +72,31 @@ jobs:
 
     steps:
       - name: 检出仓库代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        # 如果你已经确认 actions/checkout@v6 在你环境可用，
+        # 把上一行改成：uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ github.ref_name }}
 
-      - name: 解析删除规则并执行预览/删除
+      - name: 解析删除规则并直接执行删除
         shell: bash
         env:
-          DRY_RUN: ${{ github.event.inputs.dry_run }}
-          BOX1: ${{ github.event.inputs.file_box_1 }}
-          BOX2: ${{ github.event.inputs.file_box_2 }}
-          BOX3: ${{ github.event.inputs.file_box_3 }}
-          BOX4: ${{ github.event.inputs.file_box_4 }}
-          BOX5: ${{ github.event.inputs.file_box_5 }}
-          BOX6: ${{ github.event.inputs.file_box_6 }}
-          BOX7: ${{ github.event.inputs.file_box_7 }}
-          BOX8: ${{ github.event.inputs.file_box_8 }}
-          BOX9: ${{ github.event.inputs.file_box_9 }}
-          BOX10: ${{ github.event.inputs.file_box_10 }}
-          BOX11: ${{ github.event.inputs.file_box_11 }}
-          BOX12: ${{ github.event.inputs.file_box_12 }}
-          BOX13: ${{ github.event.inputs.file_box_13 }}
-          BOX14: ${{ github.event.inputs.file_box_14 }}
-          BOX15: ${{ github.event.inputs.file_box_15 }}
+          BOX1: ${{ inputs.file_box_1 }}
+          BOX2: ${{ inputs.file_box_2 }}
+          BOX3: ${{ inputs.file_box_3 }}
+          BOX4: ${{ inputs.file_box_4 }}
+          BOX5: ${{ inputs.file_box_5 }}
+          BOX6: ${{ inputs.file_box_6 }}
+          BOX7: ${{ inputs.file_box_7 }}
+          BOX8: ${{ inputs.file_box_8 }}
+          BOX9: ${{ inputs.file_box_9 }}
+          BOX10: ${{ inputs.file_box_10 }}
+          BOX11: ${{ inputs.file_box_11 }}
+          BOX12: ${{ inputs.file_box_12 }}
+          BOX13: ${{ inputs.file_box_13 }}
+          BOX14: ${{ inputs.file_box_14 }}
+          BOX15: ${{ inputs.file_box_15 }}
         run: |
           set -Eeuo pipefail
 
@@ -109,125 +105,119 @@ jobs:
           import shlex
           import glob
           import pathlib
+          import shutil
           import sys
 
           root = pathlib.Path(".").resolve()
-          dry_run = os.environ.get("DRY_RUN", "true").lower() == "true"
-
           raw_boxes = [os.environ.get(f"BOX{i}", "") for i in range(1, 16)]
 
           patterns = []
           for idx, raw in enumerate(raw_boxes, start=1):
-            raw = (raw or "").strip()
-            if not raw:
-              continue
-            try:
-              tokens = shlex.split(raw)
-            except ValueError as e:
-              print(f"❌ 输入框 {idx} 解析失败：{e}", file=sys.stderr)
-              sys.exit(1)
+              raw = (raw or "").strip()
+              if not raw:
+                  continue
 
-            for token in tokens:
-              token = token.strip()
-              if token:
-                patterns.append((idx, token))
+              try:
+                  tokens = shlex.split(raw)
+              except ValueError as e:
+                  print(f"❌ 输入框 {idx} 解析失败：{e}", file=sys.stderr)
+                  sys.exit(1)
+
+              for token in tokens:
+                  token = token.strip()
+                  if token:
+                      patterns.append((idx, token))
 
           if not patterns:
-            print("ℹ️ 没有提供任何删除规则，任务结束。")
-            sys.exit(0)
+              print("ℹ️ 没有提供任何删除规则，任务结束。")
+              sys.exit(0)
 
           print("📦 已解析删除规则：")
           for idx, token in patterns:
-            print(f"  - [框{idx}] {token}")
+              print(f"  - [框{idx}] {token}")
 
           matched = []
           seen = set()
 
           for idx, pattern in patterns:
-            found = glob.glob(pattern, recursive=True)
+              found = glob.glob(pattern, recursive=True)
 
-            if not found:
-              print(f"⚠️ [框{idx}] 未匹配到：{pattern}")
-              continue
+              if not found:
+                  print(f"⚠️ [框{idx}] 未匹配到：{pattern}")
+                  continue
 
-            for p in found:
-              if p in ("", ".", "./", "..", "../", "/"):
-                print(f"⛔ 跳过危险路径：{p}")
-                continue
+              for p in found:
+                  if p in ("", ".", "./", "..", "../", "/"):
+                      print(f"⛔ 跳过危险路径：{p}")
+                      continue
 
-              pp = pathlib.Path(p)
+                  pp = pathlib.Path(p)
 
-              try:
-                resolved = pp.resolve()
-              except FileNotFoundError:
-                continue
+                  try:
+                      resolved = pp.resolve()
+                  except Exception:
+                      continue
 
-              if resolved == root:
-                print(f"⛔ 跳过仓库根目录：{p}")
-                continue
+                  if resolved == root:
+                      print(f"⛔ 跳过仓库根目录：{p}")
+                      continue
 
-              try:
-                rel = resolved.relative_to(root)
-              except ValueError:
-                print(f"⛔ 跳过仓库外路径：{p}")
-                continue
+                  try:
+                      rel = resolved.relative_to(root)
+                  except ValueError:
+                      print(f"⛔ 跳过仓库外路径：{p}")
+                      continue
 
-              rels = rel.as_posix()
+                  rels = rel.as_posix()
 
-              if rels == ".git" or rels.startswith(".git/"):
-                print(f"⛔ 跳过 Git 元数据目录：{rels}")
-                continue
+                  if rels == ".git" or rels.startswith(".git/"):
+                      print(f"⛔ 跳过 Git 元数据目录：{rels}")
+                      continue
 
-              if rels not in seen:
-                seen.add(rels)
-                matched.append(rels)
+                  if rels not in seen:
+                      seen.add(rels)
+                      matched.append(rels)
 
           if not matched:
-            print("ℹ️ 没有任何有效匹配，任务结束。")
-            sys.exit(0)
+              print("ℹ️ 没有任何有效匹配，任务结束。")
+              sys.exit(0)
 
-          # 深层路径优先删，避免父目录先删后子路径重复报错
+          # 深层路径优先删除，避免父目录先删导致子路径重复报错
           matched.sort(key=lambda s: (s.count("/"), s), reverse=True)
 
           print("")
           print("🎯 有效匹配列表：")
           for p in matched:
-            print(f"  - {p}")
-
-          with open(".delete_targets.txt", "w", encoding="utf-8") as f:
-            for p in matched:
-              f.write(p + "\n")
+              print(f"  - {p}")
 
           print("")
-          if dry_run:
-            print(f"🔍 预览模式：共匹配 {len(matched)} 项，不执行删除。")
-          else:
-            print(f"🗑️ 执行模式：共匹配 {len(matched)} 项，开始删除。")
+          print(f"🗑️ 开始执行删除，共 {len(matched)} 项。")
+
+          for rels in matched:
+              target = root / rels
+              target_str = str(target)
+
+              if not (os.path.exists(target_str) or os.path.islink(target_str)):
+                  print(f"⚠️ 目标已不存在，跳过：{rels}")
+                  continue
+
+              try:
+                  if os.path.islink(target_str) or os.path.isfile(target_str):
+                      os.remove(target_str)
+                  else:
+                      shutil.rmtree(target_str)
+
+                  print(f"✅ 已删除：{rels}")
+              except Exception as e:
+                  print(f"❌ 删除失败：{rels} -> {e}", file=sys.stderr)
+                  sys.exit(1)
           PY
-
-          if [ "${DRY_RUN}" = "true" ]; then
-            exit 0
-          fi
-
-          if [ ! -f .delete_targets.txt ]; then
-            echo "ℹ️ 没有生成删除清单，任务结束。"
-            exit 0
-          fi
-
-          echo ""
-          echo "🧹 开始执行删除..."
-          while IFS= read -r target; do
-            [ -z "$target" ] && continue
-            rm -rf -- "$target"
-            echo "✅ 已删除：$target"
-          done < .delete_targets.txt
 
           git add -A
           echo ""
           echo "📌 已使用 git add -A 标记删除变更。"
 
       - name: 提交并推送至仓库
-        if: github.event.inputs.dry_run == 'false'
         shell: bash
         run: |
           set -Eeuo pipefail
