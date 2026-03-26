@@ -1,6 +1,7 @@
 (() => {
-  const KEY = '__indentPanelV120__';
+  const KEY = '__indentPanelV130__';
   const PREV_KEYS = [
+    '__indentPanelV130__',
     '__indentPanelV120__',
     '__indentPanelV111__',
     '__indentPanelV110__',
@@ -9,11 +10,11 @@
 
   function showError(msg) {
     try {
-      const old = document.getElementById('__indent-panel-error-v120');
+      const old = document.getElementById('__indent-panel-error-v130');
       if (old) old.remove();
 
       const box = document.createElement('div');
-      box.id = '__indent-panel-error-v120';
+      box.id = '__indent-panel-error-v130';
       box.textContent = msg;
       box.style.cssText = [
         'position:fixed',
@@ -55,6 +56,14 @@
         border: '#fbbf24',
         text: '#92400e'
       },
+      exec: {
+        strong: '#16a34a',
+        border: '#15803d',
+        text: '#ffffff',
+        mutedBg: '#b8cbbd',
+        mutedBorder: '#91a796',
+        mutedText: '#ffffff'
+      },
       muted: {
         bg: '#f3f4f6',
         border: 'rgba(0,0,0,.08)',
@@ -62,17 +71,24 @@
       }
     };
 
+    const SUPPORTED_EXT = new Set([
+      'txt','text','md','markdown','js','mjs','cjs','ts','tsx','jsx',
+      'json','json5','yaml','yml','xml','html','htm','css','scss','less',
+      'py','sh','bash','zsh','ini','conf','cfg','toml','properties',
+      'log','csv','tsv','sql','java','kt','kts','gradle','rb','php','go',
+      'rs','c','cc','cpp','h','hpp','srt','vtt','lrc','bat','ps1'
+    ]);
+
     const ACCEPT = [
       'text/*',
       'application/json',
       'application/xml',
       '.txt','.text','.md','.markdown','.js','.mjs','.cjs',
-      '.ts','.tsx','.jsx','.json','.json5',
-      '.yaml','.yml','.xml','.html','.htm','.css','.scss','.less',
-      '.py','.sh','.bash','.zsh','.ini','.conf','.cfg','.toml','.properties',
-      '.log','.csv','.tsv','.sql','.java','.kt','.kts','.gradle',
-      '.rb','.php','.go','.rs','.c','.cc','.cpp','.h','.hpp',
-      '.srt','.vtt','.lrc','.bat','.ps1'
+      '.ts','.tsx','.jsx','.json','.json5','.yaml','.yml','.xml',
+      '.html','.htm','.css','.scss','.less','.py','.sh','.bash','.zsh',
+      '.ini','.conf','.cfg','.toml','.properties','.log','.csv','.tsv',
+      '.sql','.java','.kt','.kts','.gradle','.rb','.php','.go','.rs',
+      '.c','.cc','.cpp','.h','.hpp','.srt','.vtt','.lrc','.bat','.ps1'
     ].join(',');
 
     const state = {
@@ -82,18 +98,23 @@
       action: 'indent',
       indentMode: '2',
       outdentMode: 'flush',
-      fileMeta: null
+      fileMeta: null, // null | {type:'single',name,base,ext} | {type:'multi',files:[...]}
+      multiOptions: {
+        addLabel: true,
+        addSeparator: true,
+        gapMode: 'blank' // blank | tight (仅 addSeparator=false 时生效)
+      }
     };
 
     const root = document.createElement('div');
-    root.id = '__indent-panel-v120';
+    root.id = '__indent-panel-v130';
     root.style.cssText = [
       'position:fixed',
       'left:16px',
       'top:72px',
-      'width:min(96vw,700px)',
-      'max-width:700px',
-      'min-width:300px',
+      'width:min(96vw,840px)',
+      'max-width:840px',
+      'min-width:360px',
       'background:#fff',
       'color:#111',
       'border:1px solid rgba(0,0,0,.12)',
@@ -151,8 +172,8 @@
 
         <textarea data-role="textarea" spellcheck="false" placeholder="把文本粘贴到这里，或导入本地文本文件……" style="
           width:100%;
-          min-height:360px;
-          max-height:70vh;
+          min-height:480px;
+          max-height:82vh;
           padding:12px;
           border:1px solid rgba(0,0,0,.12);
           border-radius:10px;
@@ -216,13 +237,30 @@
           <button data-role="run-outdent"></button>
         </div>
 
+        <div data-role="io-box" style="
+          display:flex;
+          flex-wrap:wrap;
+          align-items:center;
+          gap:8px;
+          padding:10px;
+          border-radius:10px;
+          border:1px solid rgba(0,0,0,.08);
+          background:#fafafa;
+        ">
+          <span style="font-size:12px;color:#666;">多文件导入选项（仅多文件导入生效）</span>
+          <button data-role="multi-label"></button>
+          <button data-role="multi-separator"></button>
+          <button data-role="multi-gap-blank"></button>
+          <button data-role="multi-gap-tight"></button>
+        </div>
+
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
           <button data-role="import"></button>
           <button data-role="export"></button>
           <button data-role="copy"></button>
           <button data-role="select-all"></button>
           <button data-role="clear"></button>
-          <input data-role="file-input" type="file" accept="${ACCEPT}" style="display:none">
+          <input data-role="file-input" type="file" multiple accept="${ACCEPT}" style="display:none">
         </div>
 
         <div data-role="meta" style="
@@ -263,6 +301,12 @@
     const outdentCustomCount = root.querySelector('[data-role="outdent-custom-count"]');
     const runOutdent = root.querySelector('[data-role="run-outdent"]');
 
+    const ioBox = root.querySelector('[data-role="io-box"]');
+    const multiLabelBtn = root.querySelector('[data-role="multi-label"]');
+    const multiSeparatorBtn = root.querySelector('[data-role="multi-separator"]');
+    const multiGapBlankBtn = root.querySelector('[data-role="multi-gap-blank"]');
+    const multiGapTightBtn = root.querySelector('[data-role="multi-gap-tight"]');
+
     const importBtn = root.querySelector('[data-role="import"]');
     const exportBtn = root.querySelector('[data-role="export"]');
     const copyBtn = root.querySelector('[data-role="copy"]');
@@ -278,15 +322,19 @@
     }
 
     function updateMeta() {
-      if (state.fileMeta) {
-        metaEl.textContent = `当前来源：已导入文件 ${state.fileMeta.name}（导出保持 .${state.fileMeta.ext}）`;
-      } else {
+      if (!state.fileMeta) {
         metaEl.textContent = '当前来源：散文本 / 手动粘贴（导出默认 .txt）';
+        return;
       }
-    }
 
-    function currentTheme(action) {
-      return action === 'outdent' ? THEME.outdent : THEME.indent;
+      if (state.fileMeta.type === 'single') {
+        metaEl.textContent = `当前来源：已导入单文件 ${state.fileMeta.name}（导出保持 .${state.fileMeta.ext}）`;
+        return;
+      }
+
+      if (state.fileMeta.type === 'multi') {
+        metaEl.textContent = `当前来源：多文件导入 ${state.fileMeta.files.length} 个（导出固定为 timestamp_merged_files.txt）`;
+      }
     }
 
     function setCollapsed(flag) {
@@ -359,18 +407,18 @@
       ].join(';');
     }
 
-    function styleActionButton(btn, text, enabled, theme) {
+    function styleExecButton(btn, text, active) {
       btn.textContent = text;
-      btn.disabled = !enabled;
+      btn.disabled = !active;
       btn.style.cssText = [
         'padding:8px 12px',
         'border-radius:10px',
         'font:13px/1.4 sans-serif',
-        'cursor:' + (enabled ? 'pointer' : 'not-allowed'),
-        'border:1px solid ' + (enabled ? theme.strong : 'rgba(0,0,0,.12)'),
-        'background:' + (enabled ? theme.strong : '#f3f4f6'),
-        'color:' + (enabled ? '#fff' : '#999'),
-        'opacity:' + (enabled ? '1' : '.7')
+        'cursor:' + (active ? 'pointer' : 'not-allowed'),
+        'border:1px solid ' + (active ? THEME.exec.border : THEME.exec.mutedBorder),
+        'background:' + (active ? THEME.exec.strong : THEME.exec.mutedBg),
+        'color:' + (active ? THEME.exec.text : THEME.exec.mutedText),
+        'opacity:1'
       ].join(';');
     }
 
@@ -402,17 +450,34 @@
 
       styleSection(indentBox, state.action === 'indent', THEME.indent);
       styleSection(outdentBox, state.action === 'outdent', THEME.outdent);
+      styleSection(ioBox, true, { soft:'#f8fafc', border:'#dbe3ea' });
 
       styleChip(indent2, '缩进2格', state.indentMode === '2', state.action === 'indent', THEME.indent);
       styleChip(indent4, '缩进4格', state.indentMode === '4', state.action === 'indent', THEME.indent);
       styleChip(indentCustom, '自定义缩进', state.indentMode === 'custom', state.action === 'indent', THEME.indent);
       styleInput(indentCustomCount, state.action === 'indent' && state.indentMode === 'custom', THEME.indent);
-      styleActionButton(runIndent, '执行缩进', state.action === 'indent', THEME.indent);
+      styleExecButton(runIndent, '执行缩进', state.action === 'indent');
 
       styleChip(outdentFlush, '顶格', state.outdentMode === 'flush', state.action === 'outdent', THEME.outdent);
       styleChip(outdentCustom, '自定义减少', state.outdentMode === 'custom', state.action === 'outdent', THEME.outdent);
       styleInput(outdentCustomCount, state.action === 'outdent' && state.outdentMode === 'custom', THEME.outdent);
-      styleActionButton(runOutdent, '执行反缩进', state.action === 'outdent', THEME.outdent);
+      styleExecButton(runOutdent, '执行反缩进', state.action === 'outdent');
+
+      styleChip(multiLabelBtn, '添加文件名标签', state.multiOptions.addLabel, true, {
+        strong:'#334155', border:'#94a3b8', text:'#334155'
+      });
+
+      styleChip(multiSeparatorBtn, '添加分隔线', state.multiOptions.addSeparator, true, {
+        strong:'#334155', border:'#94a3b8', text:'#334155'
+      });
+
+      const gapEnabled = !state.multiOptions.addSeparator;
+      styleChip(multiGapBlankBtn, '默认留空行', state.multiOptions.gapMode === 'blank', gapEnabled, {
+        strong:'#475569', border:'#94a3b8', text:'#475569'
+      });
+      styleChip(multiGapTightBtn, '不留空行', state.multiOptions.gapMode === 'tight', gapEnabled, {
+        strong:'#475569', border:'#94a3b8', text:'#475569'
+      });
 
       styleToolButton(importBtn, '导入文件');
       styleToolButton(exportBtn, '导出文件');
@@ -609,31 +674,118 @@
       return map[ext] || 'text/plain;charset=utf-8';
     }
 
-    function importFile(file) {
-      if (!file) return;
-
+    function isSupportedTextFile(file) {
       const meta = parseFileMeta(file);
-      if (meta.ext === 'pdf') {
-        setStatus('PDF 不属于纯文本导入范围，暂不支持。');
+      if (meta.ext === 'pdf') return false;
+      if (file.type && file.type.startsWith('text/')) return true;
+      if (file.type === 'application/json' || file.type === 'application/xml') return true;
+      return SUPPORTED_EXT.has(meta.ext);
+    }
+
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+        reader.onerror = () => reject(new Error(file.name + ' 读取失败'));
+        try {
+          reader.readAsText(file, 'utf-8');
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }
+
+    function stripEdgeNewlines(text) {
+      return String(text).replace(/^[\r\n]+/, '').replace(/[\r\n]+$/, '');
+    }
+
+    function makeMultiJoiner() {
+      if (state.multiOptions.addSeparator) {
+        return '\n\n----------\n\n';
+      }
+      return state.multiOptions.gapMode === 'tight' ? '\n' : '\n\n';
+    }
+
+    function makeLabeledPiece(meta, text) {
+      if (!state.multiOptions.addLabel) return String(text);
+      return `【${meta.name}】\n${String(text)}`;
+    }
+
+    function mergePiecesSequentially(pieces) {
+      if (!pieces.length) return '';
+      let out = stripEdgeNewlines(pieces[0]);
+
+      for (let i = 1; i < pieces.length; i++) {
+        const next = stripEdgeNewlines(pieces[i]);
+        const joiner = makeMultiJoiner();
+        out = stripEdgeNewlines(out) + joiner + next;
+      }
+      return out;
+    }
+
+    async function importFiles(files) {
+      if (!files || !files.length) return;
+
+      const supported = [];
+      const skipped = [];
+
+      for (const file of files) {
+        if (isSupportedTextFile(file)) supported.push(file);
+        else skipped.push(file.name || 'unknown');
+      }
+
+      if (!supported.length) {
+        setStatus('未导入任何文件：所选文件均不属于支持的文本类型。');
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        textarea.value = typeof reader.result === 'string' ? reader.result : '';
-        state.fileMeta = meta;
-        updateMeta();
-        setStatus(`已导入文件：${meta.name}`);
-      };
-      reader.onerror = () => {
-        setStatus('文件导入失败，请确认它是可读取的文本文件。');
-      };
-
-      try {
-        reader.readAsText(file, 'utf-8');
-      } catch (_) {
-        setStatus('文件导入失败，可能不是文本文件或编码不受支持。');
+      if (supported.length === 1) {
+        const file = supported[0];
+        const meta = parseFileMeta(file);
+        try {
+          const text = await readFileAsText(file);
+          textarea.value = text;
+          state.fileMeta = { type: 'single', ...meta };
+          updateMeta();
+          setStatus(skipped.length
+            ? `已导入单文件：${meta.name}；跳过 ${skipped.length} 个不支持文件。`
+            : `已导入单文件：${meta.name}`);
+        } catch (_) {
+          setStatus(`文件导入失败：${meta.name}`);
+        }
+        return;
       }
+
+      const items = [];
+      const failed = [];
+
+      for (const file of supported) {
+        const meta = parseFileMeta(file);
+        try {
+          const text = await readFileAsText(file);
+          items.push({ meta, text });
+        } catch (_) {
+          failed.push(meta.name);
+        }
+      }
+
+      if (!items.length) {
+        setStatus('多文件导入失败：没有成功读取任何文本文件。');
+        return;
+      }
+
+      const pieces = items.map(item => makeLabeledPiece(item.meta, item.text));
+      textarea.value = mergePiecesSequentially(pieces);
+      state.fileMeta = {
+        type: 'multi',
+        files: items.map(item => item.meta)
+      };
+      updateMeta();
+
+      const parts = [`已导入多文件 ${items.length} 个`];
+      if (skipped.length) parts.push(`跳过不支持文件 ${skipped.length} 个`);
+      if (failed.length) parts.push(`读取失败 ${failed.length} 个`);
+      setStatus(parts.join('；') + '。');
     }
 
     function exportFile() {
@@ -645,8 +797,19 @@
         return;
       }
 
-      const ext = state.fileMeta ? state.fileMeta.ext : 'txt';
-      const base = state.fileMeta ? state.fileMeta.base : 'text';
+      let ext = 'txt';
+      let base = 'text';
+
+      if (state.fileMeta) {
+        if (state.fileMeta.type === 'single') {
+          ext = state.fileMeta.ext || 'txt';
+          base = state.fileMeta.base || 'text';
+        } else if (state.fileMeta.type === 'multi') {
+          ext = 'txt';
+          base = 'merged_files';
+        }
+      }
+
       const fileName = `${makeTimestamp()}_${sanitizeBaseName(base)}.${ext}`;
       const blob = new Blob([text], { type: guessMime(ext) });
       const url = URL.createObjectURL(blob);
@@ -821,15 +984,42 @@
       doOutdent();
     });
 
+    multiLabelBtn.addEventListener('click', () => {
+      state.multiOptions.addLabel = !state.multiOptions.addLabel;
+      updateUI();
+      setStatus(state.multiOptions.addLabel ? '多文件导入时将添加文件名标签。' : '多文件导入时不添加文件名标签。');
+    });
+
+    multiSeparatorBtn.addEventListener('click', () => {
+      state.multiOptions.addSeparator = !state.multiOptions.addSeparator;
+      updateUI();
+      setStatus(state.multiOptions.addSeparator ? '多文件导入时将添加分隔线。' : '多文件导入时不添加分隔线。');
+    });
+
+    multiGapBlankBtn.addEventListener('click', () => {
+      if (state.multiOptions.addSeparator) return;
+      state.multiOptions.gapMode = 'blank';
+      updateUI();
+      setStatus('多文件无分隔线时，边界默认留空行。');
+    });
+
+    multiGapTightBtn.addEventListener('click', () => {
+      if (state.multiOptions.addSeparator) return;
+      state.multiOptions.gapMode = 'tight';
+      updateUI();
+      setStatus('多文件无分隔线时，边界不留空行。');
+    });
+
     importBtn.addEventListener('click', () => {
       flashButton(importBtn);
       fileInput.value = '';
       fileInput.click();
     });
 
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files && fileInput.files[0];
-      if (file) importFile(file);
+    fileInput.addEventListener('change', async () => {
+      const files = Array.from(fileInput.files || []);
+      if (!files.length) return;
+      await importFiles(files);
     });
 
     exportBtn.addEventListener('click', exportFile);
@@ -849,7 +1039,7 @@
     setStatus('就绪。');
     window[KEY] = { destroy, root };
   } catch (err) {
-    console.error('[indent_panel_v1.2.0]', err);
+    console.error('[indent_panel_v1.3.0]', err);
     showError('缩进面板加载失败：' + (err && err.message ? err.message : String(err)));
   }
 })();
