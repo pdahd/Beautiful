@@ -93,7 +93,7 @@
     };
 
     const PANEL_W = 860;
-    const PANEL_H = 1200;
+    const PANEL_H = 1150;
     const EDITOR_H = 600;
     const GUTTER_W = 58;
 
