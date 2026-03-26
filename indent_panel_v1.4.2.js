@@ -1,6 +1,7 @@
 (() => {
-  const KEY = '__indentPanelV141__';
+  const KEY = '__indentPanelV142__';
   const PREV_KEYS = [
+    '__indentPanelV142__',
     '__indentPanelV141__',
     '__indentPanelV140__',
     '__indentPanelV130__',
@@ -12,10 +13,10 @@
 
   function showError(msg) {
     try {
-      const old = document.getElementById('__indent-panel-error-v141');
+      const old = document.getElementById('__indent-panel-error-v142');
       if (old) old.remove();
       const box = document.createElement('div');
-      box.id = '__indent-panel-error-v141';
+      box.id = '__indent-panel-error-v142';
       box.textContent = msg;
       box.style.cssText = [
         'position:fixed',
@@ -81,9 +82,9 @@
       source: { type: 'plain', files: [], primary: null },
       importOpt: {
         addLabel: true,
-        wrapMode: 'none',      // none | content | startend
+        wrapMode: 'none',
         addSeparator: true,
-        gapMode: 'blank'       // blank | tight
+        gapMode: 'blank'
       },
       displayOpt: {
         showGuide: false,
@@ -92,16 +93,16 @@
     };
 
     const PANEL_W = 860;
-    const PANEL_H = 860;
-    const EDITOR_H = 420;
+    const PANEL_H = 1040;
+    const EDITOR_H = 390;
     const GUTTER_W = 58;
 
     const root = document.createElement('div');
-    root.id = '__indent-panel-v141';
+    root.id = '__indent-panel-v142';
     root.style.cssText = [
       'position:fixed',
       'left:16px',
-      'top:56px',
+      'top:28px',
       `width:${PANEL_W}px`,
       `height:${PANEL_H}px`,
       'max-width:calc(100vw - 24px)',
@@ -254,10 +255,8 @@
     const closeBtn = root.querySelector('[data-role="close"]');
     const body = root.querySelector('[data-role="body"]');
 
-    const editorWrap = root.querySelector('[data-role="editor-wrap"]');
     const gutterWrap = root.querySelector('[data-role="gutter-wrap"]');
     const gutter = root.querySelector('[data-role="gutter"]');
-    const textWrap = root.querySelector('[data-role="text-wrap"]');
     const textarea = root.querySelector('[data-role="textarea"]');
     const guide = root.querySelector('[data-role="guide"]');
     const mirror = root.querySelector('[data-role="mirror"]');
@@ -387,9 +386,7 @@
       const content = stripEdgeNewlines(text);
       const lines = [];
 
-      if (state.importOpt.addLabel) {
-        lines.push(`【${meta.name}】`);
-      }
+      if (state.importOpt.addLabel) lines.push(`【${meta.name}】`);
 
       if (state.importOpt.wrapMode === 'content') {
         lines.push('<content>');
@@ -417,9 +414,7 @@
     function mergePiecesSequentially(pieces) {
       if (!pieces.length) return '';
       let out = stripEdgeNewlines(pieces[0]);
-      for (let i = 1; i < pieces.length; i++) {
-        out = joinTextBlocks(out, pieces[i]);
-      }
+      for (let i = 1; i < pieces.length; i++) out = joinTextBlocks(out, pieces[i]);
       return out;
     }
 
@@ -438,8 +433,15 @@
 
     function setCollapsed(flag) {
       state.collapsed = !!flag;
-      body.style.display = state.collapsed ? 'none' : 'flex';
-      titleText.textContent = state.collapsed ? '缩进处理面板（已折叠）' : '缩进处理面板';
+      if (state.collapsed) {
+        body.style.display = 'none';
+        root.style.height = Math.ceil(title.getBoundingClientRect().height + 2) + 'px';
+        titleText.textContent = '缩进处理面板（已折叠）';
+      } else {
+        body.style.display = 'flex';
+        root.style.height = PANEL_H + 'px';
+        titleText.textContent = '缩进处理面板';
+      }
     }
 
     function clampPosition() {
@@ -524,9 +526,9 @@
       }
       gutterWrap.style.display = 'block';
       const count = Math.max(1, textarea.value.split('\n').length);
-      const arr = [];
-      for (let i = 1; i <= count; i++) arr.push(String(i));
-      gutter.textContent = arr.join('\n');
+      const lines = [];
+      for (let i = 1; i <= count; i++) lines.push(String(i));
+      gutter.textContent = lines.join('\n');
       gutter.style.transform = `translateY(${-textarea.scrollTop}px)`;
     }
 
@@ -634,7 +636,7 @@
       if (state.indentMode === '4') return 4;
       const n = parseInt(indentCustomCount.value, 10);
       if (!Number.isFinite(n) || n < 1) {
-        setStatus('自定义增加数量无效，请输入 1~64 的整数。');
+        setStatus('自��义增加数量无效，请输入 1~64 的整数。');
         return null;
       }
       return Math.min(64, n);
@@ -876,9 +878,7 @@
       const dx = e.clientX - d.startX;
       const dy = e.clientY - d.startY;
 
-      if (!d.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
-        d.moved = true;
-      }
+      if (!d.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) d.moved = true;
       if (!d.moved) return;
 
       const maxLeft = Math.max(0, window.innerWidth - root.offsetWidth - 4);
@@ -919,6 +919,11 @@
     }
 
     function onResize() {
+      if (state.collapsed) {
+        root.style.height = Math.ceil(title.getBoundingClientRect().height + 2) + 'px';
+      } else {
+        root.style.height = PANEL_H + 'px';
+      }
       clampPosition();
       updateDisplayLayer();
     }
@@ -1124,7 +1129,7 @@
     setStatus('就绪。');
     window[KEY] = { destroy, root };
   } catch (err) {
-    console.error('[indent_panel_v1.4.1]', err);
+    console.error('[indent_panel_v1.4.2]', err);
     showError('缩进面板加载失败：' + (err && err.message ? err.message : String(err)));
   }
 })();
