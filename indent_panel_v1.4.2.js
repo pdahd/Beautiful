@@ -215,7 +215,7 @@
           display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:none;
           padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);background:#fafafa;
         ">
-          <span style="font-size:12px;color:#666;">导入选项</span>
+          <span style="font-size:12px;color:#666;">导入包装选项</span>
           <button data-role="add-label"></button>
           <button data-role="wrap-none"></button>
           <button data-role="wrap-content"></button>
@@ -605,7 +605,7 @@
       styleChip(wrapContentBtn, '<content>', state.importOpt.wrapMode === 'content', true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
       styleChip(wrapStartendBtn, 'START >>>', state.importOpt.wrapMode === 'startend', true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
       styleChip(addSeparatorBtn, '添加分隔线', state.importOpt.addSeparator, true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
-      styleChip(gapBlankBtn, '默认留空行', state.importOpt.gapMode === 'blank', !state.importOpt.addSeparator, { strong:'#475569', border:'#94a3b8', text:'#475569' });
+      styleChip(gapBlankBtn, '留空行', state.importOpt.gapMode === 'blank', !state.importOpt.addSeparator, { strong:'#475569', border:'#94a3b8', text:'#475569' });
       styleChip(gapTightBtn, '不留空行', state.importOpt.gapMode === 'tight', !state.importOpt.addSeparator, { strong:'#475569', border:'#94a3b8', text:'#475569' });
 
       styleChip(showGuideBtn, '显示参考线', state.displayOpt.showGuide, true, THEME.purple);
