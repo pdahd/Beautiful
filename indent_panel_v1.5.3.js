@@ -1,6 +1,7 @@
 (() => {
-  const KEY = '__indentPanelV152__';
+  const KEY = '__indentPanelV153__';
   const PREV_KEYS = [
+    '__indentPanelV153__',
     '__indentPanelV152__',
     '__indentPanelV151__',
     '__indentPanelV150__',
@@ -16,10 +17,10 @@
 
   function showError(msg) {
     try {
-      const old = document.getElementById('__indent-panel-error-v152');
+      const old = document.getElementById('__indent-panel-error-v153');
       if (old) old.remove();
       const box = document.createElement('div');
-      box.id = '__indent-panel-error-v152';
+      box.id = '__indent-panel-error-v153';
       box.textContent = msg;
       box.style.cssText = [
         'position:fixed',
@@ -100,18 +101,18 @@
       },
       panelOpt: {
         passThrough: false,
-        opacity: 35   // 这里的数值表示“主体可见度”，0=完全隐藏，100=完全可见
+        opacity: 35
       }
     };
 
-    // 继承你确认过的参数
+    // 继承你已确认过的参数
     const PANEL_W = 860;
     const PANEL_H = 1150;
     const EDITOR_H = 590;
     const GUTTER_W = 58;
 
     const root = document.createElement('div');
-    root.id = '__indent-panel-v152';
+    root.id = '__indent-panel-v153';
     root.style.cssText = [
       'position:fixed',
       'left:16px',
@@ -200,6 +201,7 @@
         overflow:auto;
         pointer-events:auto;
         opacity:1;
+        background:#fff;
       ">
         <div style="font-size:12px;color:#666;flex:none;">
           有选区时仅处理选中行；无选区时处理全文。双击标题栏可折叠/展开，拖动标题栏可移动面板。
@@ -404,132 +406,6 @@
       statusEl.textContent = msg;
     }
 
-    function sanitizeBaseName(name) {
-      return (name || 'text').replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, ' ').trim() || 'text';
-    }
-
-    function makeTimestamp() {
-      const d = new Date();
-      const p = n => String(n).padStart(2, '0');
-      return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-    }
-
-    function parseFileMeta(file) {
-      const name = file && file.name ? file.name : 'imported.txt';
-      const idx = name.lastIndexOf('.');
-      const base = idx > 0 ? name.slice(0, idx) : name;
-      const ext = idx > 0 ? name.slice(idx + 1).toLowerCase() : 'txt';
-      return { name, base, ext };
-    }
-
-    function isSupportedTextFile(file) {
-      const meta = parseFileMeta(file);
-      if (meta.ext === 'pdf') return false;
-      if (file.type && file.type.startsWith('text/')) return true;
-      if (file.type === 'application/json' || file.type === 'application/xml') return true;
-      return SUPPORTED_EXT.has(meta.ext);
-    }
-
-    function readFileAsText(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-        reader.onerror = () => reject(new Error((file && file.name) || 'unknown'));
-        try {
-          reader.readAsText(file, 'utf-8');
-        } catch (e) {
-          reject(e);
-        }
-      });
-    }
-
-    function guessMime(ext) {
-      const map = {
-        txt:'text/plain;charset=utf-8',
-        md:'text/markdown;charset=utf-8',
-        markdown:'text/markdown;charset=utf-8',
-        js:'application/javascript;charset=utf-8',
-        mjs:'application/javascript;charset=utf-8',
-        cjs:'application/javascript;charset=utf-8',
-        ts:'application/typescript;charset=utf-8',
-        json:'application/json;charset=utf-8',
-        yaml:'text/yaml;charset=utf-8',
-        yml:'text/yaml;charset=utf-8',
-        xml:'application/xml;charset=utf-8',
-        html:'text/html;charset=utf-8',
-        htm:'text/html;charset=utf-8',
-        css:'text/css;charset=utf-8',
-        py:'text/plain;charset=utf-8',
-        srt:'text/plain;charset=utf-8'
-      };
-      return map[ext] || 'text/plain;charset=utf-8';
-    }
-
-    function stripLeadingNewlines(text) {
-      return String(text).replace(/^[\r\n]+/, '');
-    }
-
-    function stripTrailingNewlines(text) {
-      return String(text).replace(/[\r\n]+$/, '');
-    }
-
-    function stripEdgeNewlines(text) {
-      return stripTrailingNewlines(stripLeadingNewlines(text));
-    }
-
-    function makeJoiner() {
-      if (state.importOpt.addSeparator) return '\n\n----------\n\n';
-      return state.importOpt.gapMode === 'blank' ? '\n\n' : '\n';
-    }
-
-    function buildWrappedPiece(meta, text) {
-      const content = stripEdgeNewlines(text);
-      const lines = [];
-      if (state.importOpt.addLabel) lines.push(`【${meta.name}】`);
-
-      if (state.importOpt.wrapMode === 'content') {
-        lines.push('<content>');
-        lines.push(content);
-        lines.push('</content>');
-      } else if (state.importOpt.wrapMode === 'startend') {
-        lines.push('START >>>');
-        lines.push(content);
-        lines.push('<<< END');
-      } else {
-        lines.push(content);
-      }
-
-      return lines.join('\n');
-    }
-
-    function joinTextBlocks(left, right) {
-      const a = stripTrailingNewlines(left || '');
-      const b = stripLeadingNewlines(right || '');
-      if (!a) return b;
-      if (!b) return a;
-      return a + makeJoiner() + b;
-    }
-
-    function mergePiecesSequentially(pieces) {
-      if (!pieces.length) return '';
-      let out = stripEdgeNewlines(pieces[0]);
-      for (let i = 1; i < pieces.length; i++) out = joinTextBlocks(out, pieces[i]);
-      return out;
-    }
-
-    function updateMeta() {
-      const s = state.source;
-      if (s.type === 'plain') {
-        metaEl.textContent = '当前来源：散文本 / 手动粘贴（导出默认 .txt）';
-      } else if (s.type === 'single') {
-        metaEl.textContent = `当前来源：单文件导入 ${s.primary.name}（当前可保持原扩展名 .${s.primary.ext} 导出）`;
-      } else if (s.type === 'multi') {
-        metaEl.textContent = `当前来源：多文件追加导入，共 ${s.files.length} 个文件（导出固定为 timestamp_merged_files.txt）`;
-      } else {
-        metaEl.textContent = `当前来源：散文本 + 导入文件的混合内容（导出固定为 timestamp_merged_files.txt）`;
-      }
-    }
-
     function applyFrameStyle() {
       if (state.panelOpt.passThrough) {
         root.style.background = 'transparent';
@@ -563,11 +439,11 @@
     }
 
     function applyBodyOpacity() {
-      if (state.panelOpt.passThrough) {
-        body.style.opacity = String((state.panelOpt.opacity / 100).toFixed(2));
-      } else {
-        body.style.opacity = '1';
-      }
+      // 关键修复：主体整层（含大背景）一起透明
+      body.style.background = '#fff';
+      body.style.opacity = state.panelOpt.passThrough
+        ? String((state.panelOpt.opacity / 100).toFixed(2))
+        : '1';
     }
 
     function applyPassThrough() {
@@ -600,6 +476,19 @@
       clampPosition();
     }
 
+    function updateMeta() {
+      const s = state.source;
+      if (s.type === 'plain') {
+        metaEl.textContent = '当前来源：散文本 / 手动粘贴（导出默认 .txt）';
+      } else if (s.type === 'single') {
+        metaEl.textContent = `当前来源：单文件导入 ${s.primary.name}（当前可保持原扩展名 .${s.primary.ext} 导出）`;
+      } else if (s.type === 'multi') {
+        metaEl.textContent = `当前来源：多文件追加导入，共 ${s.files.length} 个文件（导出固定为 timestamp_merged_files.txt）`;
+      } else {
+        metaEl.textContent = `当前来源：散文本 + 导入文件的混合内容（导出固定为 timestamp_merged_files.txt）`;
+      }
+    }
+
     function setCollapsed(flag) {
       state.collapsed = !!flag;
       syncBodyVisibility();
@@ -619,8 +508,6 @@
 
       const minLeft = -w + keepW;
       const maxLeft = window.innerWidth - keepW;
-
-      // 继承 v1.5.1 已修好的上边界限制
       const minTop = 0;
       const maxTop = window.innerHeight - keepH;
 
@@ -1160,7 +1047,7 @@
         state.panelOpt.passThrough
           ? (state.panelOpt.opacity === 0
               ? '已开启透明穿透：主体已完全隐藏，只保留标题栏。'
-              : '已开启透明穿透：标题栏以下区域可直接操作网页。')
+              : '已开启透明穿透：主体与大背景已同步透明。')
           : '已关闭透明穿透，恢复面板正常操作。'
       );
     });
@@ -1350,7 +1237,7 @@
     setStatus('就绪。');
     window[KEY] = { destroy, root };
   } catch (err) {
-    console.error('[indent_panel_v1.5.2]', err);
+    console.error('[indent_panel_v1.5.3]', err);
     showError('缩进面板加载失败：' + (err && err.message ? err.message : String(err)));
   }
 })();
