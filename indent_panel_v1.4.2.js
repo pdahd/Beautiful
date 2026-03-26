@@ -93,8 +93,8 @@
     };
 
     const PANEL_W = 860;
-    const PANEL_H = 1040;
-    const EDITOR_H = 500;
+    const PANEL_H = 1200;
+    const EDITOR_H = 600;
     const GUTTER_W = 58;
 
     const root = document.createElement('div');
