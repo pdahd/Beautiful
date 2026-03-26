@@ -1,6 +1,7 @@
 (() => {
-  const KEY = '__indentPanelV140__';
+  const KEY = '__indentPanelV141__';
   const PREV_KEYS = [
+    '__indentPanelV141__',
     '__indentPanelV140__',
     '__indentPanelV130__',
     '__indentPanelV120__',
@@ -11,10 +12,10 @@
 
   function showError(msg) {
     try {
-      const old = document.getElementById('__indent-panel-error-v140');
+      const old = document.getElementById('__indent-panel-error-v141');
       if (old) old.remove();
       const box = document.createElement('div');
-      box.id = '__indent-panel-error-v140';
+      box.id = '__indent-panel-error-v141';
       box.textContent = msg;
       box.style.cssText = [
         'position:fixed',
@@ -90,15 +91,21 @@
       }
     };
 
+    const PANEL_W = 860;
+    const PANEL_H = 860;
+    const EDITOR_H = 420;
+    const GUTTER_W = 58;
+
     const root = document.createElement('div');
-    root.id = '__indent-panel-v140';
+    root.id = '__indent-panel-v141';
     root.style.cssText = [
       'position:fixed',
       'left:16px',
-      'top:72px',
-      'width:min(98vw,1000px)',
-      'max-width:1000px',
-      'min-width:360px',
+      'top:56px',
+      `width:${PANEL_W}px`,
+      `height:${PANEL_H}px`,
+      'max-width:calc(100vw - 24px)',
+      'max-height:calc(100vh - 24px)',
       'background:#fff',
       'color:#111',
       'border:1px solid rgba(0,0,0,.12)',
@@ -106,14 +113,16 @@
       'box-shadow:0 8px 30px rgba(0,0,0,.18)',
       'z-index:2147483647',
       'font:14px/1.5 sans-serif',
-      'overflow:hidden'
+      'overflow:hidden',
+      'display:flex',
+      'flex-direction:column'
     ].join(';');
 
     root.innerHTML = `
       <div data-role="title" style="
         display:flex;align-items:center;justify-content:space-between;gap:10px;
         padding:10px 12px;background:#f6f7f9;border-bottom:1px solid rgba(0,0,0,.08);
-        cursor:move;user-select:none;-webkit-user-select:none;touch-action:none;
+        cursor:move;user-select:none;-webkit-user-select:none;touch-action:none;flex:none;
       ">
         <div data-role="title-text" style="
           font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -124,29 +133,35 @@
         ">×</button>
       </div>
 
-      <div data-role="body" style="display:flex;flex-direction:column;gap:10px;padding:12px;">
-        <div style="font-size:12px;color:#666;">
+      <div data-role="body" style="
+        display:flex;flex-direction:column;gap:10px;padding:12px;
+        flex:1 1 auto;min-height:0;overflow:auto;
+      ">
+        <div style="font-size:12px;color:#666;flex:none;">
           有选区时仅处理选中行；无选区时处理全文。双击标题栏可折叠/展开，拖动标题栏可移动面板。
         </div>
 
         <div data-role="editor-wrap" style="
-          position:relative;display:flex;align-items:stretch;
+          position:relative;display:flex;align-items:stretch;flex:none;
           border:1px solid rgba(0,0,0,.12);border-radius:10px;overflow:hidden;background:#fff;
+          height:${EDITOR_H}px;
         ">
           <div data-role="gutter-wrap" style="
-            display:none;flex:none;width:60px;background:#faf5ff;border-right:1px solid rgba(0,0,0,.08);overflow:hidden;
+            display:none;flex:none;width:${GUTTER_W}px;background:#faf5ff;
+            border-right:1px solid rgba(0,0,0,.08);overflow:hidden;
           ">
             <div data-role="gutter" style="
-              padding:12px 8px;font:13px/1.65 monospace;color:#7e22ce;text-align:right;white-space:pre;
-              transform:translateY(0);
+              padding:12px 8px;font:13px/1.65 monospace;color:#7e22ce;
+              text-align:right;white-space:pre;transform:translateY(0);
             "></div>
           </div>
 
           <div data-role="text-wrap" style="position:relative;flex:1;min-width:0;background:#fff;">
-            <textarea data-role="textarea" spellcheck="false" placeholder="把文本粘贴到这里，或导入本地文本文件……" style="
-              width:100%;height:62vh;min-height:520px;max-height:82vh;
+            <textarea data-role="textarea" wrap="off" spellcheck="false" placeholder="把文本粘贴到这里，或导入本地文本文件……" style="
+              width:100%;height:${EDITOR_H}px;min-height:${EDITOR_H}px;max-height:${EDITOR_H}px;
               padding:12px;border:0;border-radius:0;background:#fff;color:#111;
-              font:13px/1.65 monospace;resize:vertical;box-sizing:border-box;outline:none;
+              font:13px/1.65 monospace;resize:none;box-sizing:border-box;outline:none;
+              overflow:auto;
             "></textarea>
 
             <div data-role="guide" style="
@@ -156,18 +171,18 @@
 
             <div data-role="mirror" style="
               position:absolute;left:-99999px;top:0;visibility:hidden;pointer-events:none;
-              white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;
+              white-space:pre;box-sizing:border-box;
             "></div>
           </div>
         </div>
 
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;flex:none;">
           <button data-role="action-indent"></button>
           <button data-role="action-outdent"></button>
         </div>
 
         <div data-role="indent-box" style="
-          display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+          display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:none;
           padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);
         ">
           <span style="font-size:12px;color:#666;">缩进选项</span>
@@ -182,7 +197,7 @@
         </div>
 
         <div data-role="outdent-box" style="
-          display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+          display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:none;
           padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);
         ">
           <span style="font-size:12px;color:#666;">反缩进选项</span>
@@ -196,7 +211,7 @@
         </div>
 
         <div data-role="import-box" style="
-          display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+          display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:none;
           padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);background:#fafafa;
         ">
           <span style="font-size:12px;color:#666;">导入包装选项</span>
@@ -210,7 +225,7 @@
         </div>
 
         <div data-role="display-box" style="
-          display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+          display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:none;
           padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);background:#fafafa;
         ">
           <span style="font-size:12px;color:#666;">显示选项</span>
@@ -218,7 +233,7 @@
           <button data-role="show-lines"></button>
         </div>
 
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;flex:none;">
           <button data-role="import"></button>
           <button data-role="export"></button>
           <button data-role="copy"></button>
@@ -227,8 +242,8 @@
           <input data-role="file-input" type="file" multiple accept="${ACCEPT}" style="display:none">
         </div>
 
-        <div data-role="meta" style="min-height:18px;font-size:12px;color:#666;"></div>
-        <div data-role="status" style="min-height:18px;font-size:12px;color:#666;">就绪</div>
+        <div data-role="meta" style="min-height:18px;font-size:12px;color:#666;flex:none;"></div>
+        <div data-role="status" style="min-height:18px;font-size:12px;color:#666;flex:none;">就绪</div>
       </div>
     `;
 
@@ -413,7 +428,7 @@
       if (s.type === 'plain') {
         metaEl.textContent = '当前来源：散文本 / 手动粘贴（导出默认 .txt）';
       } else if (s.type === 'single') {
-        metaEl.textContent = `当前来源：单文件导入 ${s.primary.name}（当前仍可保持原扩展名 .${s.primary.ext} 导出）`;
+        metaEl.textContent = `当前来源：单文件导入 ${s.primary.name}（当前可保持原扩展名 .${s.primary.ext} 导出）`;
       } else if (s.type === 'multi') {
         metaEl.textContent = `当前来源：多文件追加导入，共 ${s.files.length} 个文件（导出固定为 timestamp_merged_files.txt）`;
       } else {
@@ -509,15 +524,15 @@
       }
       gutterWrap.style.display = 'block';
       const count = Math.max(1, textarea.value.split('\n').length);
-      const lines = [];
-      for (let i = 1; i <= count; i++) lines.push(String(i));
-      gutter.textContent = lines.join('\n');
+      const arr = [];
+      for (let i = 1; i <= count; i++) arr.push(String(i));
+      gutter.textContent = arr.join('\n');
       gutter.style.transform = `translateY(${-textarea.scrollTop}px)`;
     }
 
     function syncMirrorStyle() {
       const cs = getComputedStyle(textarea);
-      mirror.style.width = textarea.clientWidth + 'px';
+      mirror.style.width = textarea.scrollWidth + 'px';
       mirror.style.paddingTop = cs.paddingTop;
       mirror.style.paddingRight = cs.paddingRight;
       mirror.style.paddingBottom = cs.paddingBottom;
@@ -546,7 +561,7 @@
       marker.textContent = '\u200b';
       mirror.appendChild(marker);
 
-      let x = marker.offsetLeft - textarea.scrollLeft;
+      const x = marker.offsetLeft - textarea.scrollLeft;
       if (x < 0 || x > textarea.clientWidth) {
         guide.style.display = 'none';
         return;
@@ -646,6 +661,7 @@
       const end = textarea.selectionEnd || 0;
       const hasSel = start !== end;
       const scrollTop = textarea.scrollTop;
+      const scrollLeft = textarea.scrollLeft;
 
       let lineStart = 0;
       let lineEnd = text.length;
@@ -664,6 +680,7 @@
       textarea.value = before + newBlock + after;
       textarea.focus();
       textarea.scrollTop = scrollTop;
+      textarea.scrollLeft = scrollLeft;
 
       if (hasSel) {
         textarea.selectionStart = lineStart;
@@ -710,7 +727,8 @@
 
       const oldStart = textarea.selectionStart;
       const oldEnd = textarea.selectionEnd;
-      const oldScroll = textarea.scrollTop;
+      const oldScrollTop = textarea.scrollTop;
+      const oldScrollLeft = textarea.scrollLeft;
 
       try {
         await navigator.clipboard.writeText(text);
@@ -724,7 +742,8 @@
         } catch (_) {}
         textarea.selectionStart = oldStart;
         textarea.selectionEnd = oldEnd;
-        textarea.scrollTop = oldScroll;
+        textarea.scrollTop = oldScrollTop;
+        textarea.scrollLeft = oldScrollLeft;
         setStatus(ok ? '已复制全部内容。' : '复制失败，请手动复制。');
       }
     }
@@ -783,7 +802,6 @@
 
       const pieces = items.map(item => buildWrappedPiece(item.meta, item.text));
       const bundle = mergePiecesSequentially(pieces);
-
       const hadExistingText = textarea.value.length > 0;
       const prev = state.source;
 
@@ -800,31 +818,18 @@
         if (prev.type === 'plain') {
           state.source = { type: 'mixed', files: items.map(x => x.meta), primary: null };
         } else if (prev.type === 'single') {
-          state.source = {
-            type: 'multi',
-            files: [...prev.files, ...items.map(x => x.meta)],
-            primary: null
-          };
+          state.source = { type: 'multi', files: [...prev.files, ...items.map(x => x.meta)], primary: null };
         } else if (prev.type === 'multi') {
-          state.source = {
-            type: 'multi',
-            files: [...prev.files, ...items.map(x => x.meta)],
-            primary: null
-          };
+          state.source = { type: 'multi', files: [...prev.files, ...items.map(x => x.meta)], primary: null };
         } else {
-          state.source = {
-            type: 'mixed',
-            files: [...prev.files, ...items.map(x => x.meta)],
-            primary: null
-          };
+          state.source = { type: 'mixed', files: [...prev.files, ...items.map(x => x.meta)], primary: null };
         }
       }
 
       updateMeta();
       updateDisplayLayer();
 
-      const msg = [];
-      msg.push(`已导入 ${items.length} 个文件`);
+      const msg = [`已导入 ${items.length} 个文件`];
       if (skipped.length) msg.push(`跳过不支持文件 ${skipped.length} 个`);
       if (failed.length) msg.push(`读取失败 ${failed.length} 个`);
       setStatus(msg.join('；') + '。');
@@ -1119,7 +1124,7 @@
     setStatus('就绪。');
     window[KEY] = { destroy, root };
   } catch (err) {
-    console.error('[indent_panel_v1.4.0]', err);
+    console.error('[indent_panel_v1.4.1]', err);
     showError('缩进面板加载失败：' + (err && err.message ? err.message : String(err)));
   }
 })();
