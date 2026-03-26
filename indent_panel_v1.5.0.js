@@ -1,6 +1,7 @@
 (() => {
-  const KEY = '__indentPanelV142__';
+  const KEY = '__indentPanelV150__';
   const PREV_KEYS = [
+    '__indentPanelV150__',
     '__indentPanelV142__',
     '__indentPanelV141__',
     '__indentPanelV140__',
@@ -13,10 +14,10 @@
 
   function showError(msg) {
     try {
-      const old = document.getElementById('__indent-panel-error-v142');
+      const old = document.getElementById('__indent-panel-error-v150');
       if (old) old.remove();
       const box = document.createElement('div');
-      box.id = '__indent-panel-error-v142';
+      box.id = '__indent-panel-error-v150';
       box.textContent = msg;
       box.style.cssText = [
         'position:fixed',
@@ -50,6 +51,7 @@
       outdent: { strong:'#d97706', soft:'#fef3c7', border:'#fbbf24', text:'#92400e' },
       exec: { strong:'#16a34a', border:'#15803d', text:'#fff', mutedBg:'#b8cbbd', mutedBorder:'#91a796', mutedText:'#fff' },
       purple: { strong:'#7e22ce', soft:'#faf5ff', border:'#d8b4fe', text:'#6b21a8', line:'rgba(147,51,234,.7)' },
+      slate: { strong:'#334155', soft:'#f8fafc', border:'#94a3b8', text:'#334155' },
       muted: { bg:'#f3f4f6', border:'rgba(0,0,0,.08)', text:'#6b7280' }
     };
 
@@ -89,24 +91,27 @@
       displayOpt: {
         showGuide: false,
         showLines: false
+      },
+      panelOpt: {
+        passThrough: false,
+        opacity: 100
       }
     };
 
+    // 继承你手动确认过的高度参数
     const PANEL_W = 860;
     const PANEL_H = 1150;
     const EDITOR_H = 590;
     const GUTTER_W = 58;
 
     const root = document.createElement('div');
-    root.id = '__indent-panel-v142';
+    root.id = '__indent-panel-v150';
     root.style.cssText = [
       'position:fixed',
       'left:16px',
-      'top:28px',
+      'top:24px',
       `width:${PANEL_W}px`,
       `height:${PANEL_H}px`,
-      'max-width:calc(100vw - 24px)',
-      'max-height:calc(100vh - 24px)',
       'background:#fff',
       'color:#111',
       'border:1px solid rgba(0,0,0,.12)',
@@ -116,63 +121,149 @@
       'font:14px/1.5 sans-serif',
       'overflow:hidden',
       'display:flex',
-      'flex-direction:column'
+      'flex-direction:column',
+      'pointer-events:auto'
     ].join(';');
 
     root.innerHTML = `
       <div data-role="title" style="
-        display:flex;align-items:center;justify-content:space-between;gap:10px;
-        padding:10px 12px;background:#f6f7f9;border-bottom:1px solid rgba(0,0,0,.08);
-        cursor:move;user-select:none;-webkit-user-select:none;touch-action:none;flex:none;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        padding:10px 12px;
+        background:#f6f7f9;
+        border-bottom:1px solid rgba(0,0,0,.08);
+        cursor:move;
+        user-select:none;
+        -webkit-user-select:none;
+        touch-action:none;
+        flex:none;
+        pointer-events:auto;
       ">
         <div data-role="title-text" style="
-          font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+          font-weight:600;
+          font-size:14px;
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
+          min-width:0;
         ">缩进处理面板</div>
-        <button data-role="close" style="
-          flex:none;width:28px;height:28px;border:1px solid rgba(0,0,0,.12);
-          border-radius:8px;background:#fff;color:#111;font:16px/1 sans-serif;cursor:pointer;
-        ">×</button>
+
+        <div data-role="title-right" style="
+          display:flex;
+          align-items:center;
+          gap:8px;
+          flex:none;
+          pointer-events:auto;
+        ">
+          <input data-role="opacity-range" type="range" min="20" max="100" step="5" value="100" style="
+            width:92px;
+            accent-color:#7e22ce;
+            cursor:pointer;
+          ">
+          <button data-role="pass" style="
+            border:1px solid rgba(0,0,0,.12);
+            border-radius:8px;
+            background:#fff;
+            color:#111;
+            padding:6px 10px;
+            font:13px/1 sans-serif;
+            cursor:pointer;
+          ">穿透</button>
+          <button data-role="close" style="
+            width:28px;
+            height:28px;
+            border:1px solid rgba(0,0,0,.12);
+            border-radius:8px;
+            background:#fff;
+            color:#111;
+            font:16px/1 sans-serif;
+            cursor:pointer;
+          ">×</button>
+        </div>
       </div>
 
       <div data-role="body" style="
-        display:flex;flex-direction:column;gap:10px;padding:12px;
-        flex:1 1 auto;min-height:0;overflow:auto;
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        padding:12px;
+        flex:1 1 auto;
+        min-height:0;
+        overflow:auto;
+        pointer-events:auto;
+        opacity:1;
       ">
         <div style="font-size:12px;color:#666;flex:none;">
           有选区时仅处理选中行；无选区时处理全文。双击标题栏可折叠/展开，拖动标题栏可移动面板。
         </div>
 
         <div data-role="editor-wrap" style="
-          position:relative;display:flex;align-items:stretch;flex:none;
-          border:1px solid rgba(0,0,0,.12);border-radius:10px;overflow:hidden;background:#fff;
+          position:relative;
+          display:flex;
+          align-items:stretch;
+          flex:none;
+          border:1px solid rgba(0,0,0,.12);
+          border-radius:10px;
+          overflow:hidden;
+          background:#fff;
           height:${EDITOR_H}px;
         ">
           <div data-role="gutter-wrap" style="
-            display:none;flex:none;width:${GUTTER_W}px;background:#faf5ff;
-            border-right:1px solid rgba(0,0,0,.08);overflow:hidden;
+            display:none;
+            flex:none;
+            width:${GUTTER_W}px;
+            background:#faf5ff;
+            border-right:1px solid rgba(0,0,0,.08);
+            overflow:hidden;
           ">
             <div data-role="gutter" style="
-              padding:12px 8px;font:13px/1.65 monospace;color:#7e22ce;
-              text-align:right;white-space:pre;transform:translateY(0);
+              padding:12px 8px;
+              font:13px/1.65 monospace;
+              color:#7e22ce;
+              text-align:right;
+              white-space:pre;
+              transform:translateY(0);
             "></div>
           </div>
 
           <div data-role="text-wrap" style="position:relative;flex:1;min-width:0;background:#fff;">
             <textarea data-role="textarea" wrap="off" spellcheck="false" placeholder="把文本粘贴到这里，或导入本地文本文件……" style="
-              width:100%;height:${EDITOR_H}px;min-height:${EDITOR_H}px;max-height:${EDITOR_H}px;
-              padding:12px;border:0;border-radius:0;background:#fff;color:#111;
-              font:13px/1.65 monospace;resize:none;box-sizing:border-box;outline:none;
+              width:100%;
+              height:${EDITOR_H}px;
+              min-height:${EDITOR_H}px;
+              max-height:${EDITOR_H}px;
+              padding:12px;
+              border:0;
+              border-radius:0;
+              background:#fff;
+              color:#111;
+              font:13px/1.65 monospace;
+              resize:none;
+              box-sizing:border-box;
+              outline:none;
               overflow:auto;
             "></textarea>
 
             <div data-role="guide" style="
-              position:absolute;top:0;bottom:0;width:1px;background:rgba(147,51,234,.7);
-              pointer-events:none;display:none;
+              position:absolute;
+              top:0;
+              bottom:0;
+              width:1px;
+              background:rgba(147,51,234,.7);
+              pointer-events:none;
+              display:none;
             "></div>
 
             <div data-role="mirror" style="
-              position:absolute;left:-99999px;top:0;visibility:hidden;pointer-events:none;
-              white-space:pre;box-sizing:border-box;
+              position:absolute;
+              left:-99999px;
+              top:0;
+              visibility:hidden;
+              pointer-events:none;
+              white-space:pre;
+              box-sizing:border-box;
             "></div>
           </div>
         </div>
@@ -252,6 +343,9 @@
 
     const title = root.querySelector('[data-role="title"]');
     const titleText = root.querySelector('[data-role="title-text"]');
+    const titleRight = root.querySelector('[data-role="title-right"]');
+    const opacityRange = root.querySelector('[data-role="opacity-range"]');
+    const passBtn = root.querySelector('[data-role="pass"]');
     const closeBtn = root.querySelector('[data-role="close"]');
     const body = root.querySelector('[data-role="body"]');
 
@@ -431,6 +525,32 @@
       }
     }
 
+    function applyBodyOpacity() {
+      body.style.opacity = String(state.panelOpt.opacity / 100);
+    }
+
+    function applyPassThrough() {
+      applyBodyOpacity();
+
+      if (state.panelOpt.passThrough) {
+        root.style.pointerEvents = 'none';
+        title.style.pointerEvents = 'auto';
+        titleRight.style.pointerEvents = 'auto';
+        body.style.pointerEvents = 'none';
+        passBtn.style.background = '#d97706';
+        passBtn.style.borderColor = '#b45309';
+        passBtn.style.color = '#fff';
+      } else {
+        root.style.pointerEvents = 'auto';
+        title.style.pointerEvents = 'auto';
+        titleRight.style.pointerEvents = 'auto';
+        body.style.pointerEvents = 'auto';
+        passBtn.style.background = '#fff';
+        passBtn.style.borderColor = 'rgba(0,0,0,.12)';
+        passBtn.style.color = '#111';
+      }
+    }
+
     function setCollapsed(flag) {
       state.collapsed = !!flag;
       if (state.collapsed) {
@@ -441,20 +561,30 @@
         body.style.display = 'flex';
         root.style.height = PANEL_H + 'px';
         titleText.textContent = '缩进处理面板';
+        applyBodyOpacity();
       }
+      clampPosition();
     }
 
     function clampPosition() {
       const rect = root.getBoundingClientRect();
+      const w = rect.width || root.offsetWidth || PANEL_W;
+      const h = rect.height || root.offsetHeight || PANEL_H;
+
       let left = parseFloat(root.style.left) || rect.left;
       let top = parseFloat(root.style.top) || rect.top;
 
-      const maxLeft = Math.max(0, window.innerWidth - rect.width - 4);
-      const maxTop = Math.max(0, window.innerHeight - rect.height - 4);
+      const keepW = w / 3;
+      const keepH = h / 3;
 
-      if (left < 0) left = 0;
-      if (top < 0) top = 0;
+      const minLeft = -w + keepW;
+      const maxLeft = window.innerWidth - keepW;
+      const minTop = -h + keepH;
+      const maxTop = window.innerHeight - keepH;
+
+      if (left < minLeft) left = minLeft;
       if (left > maxLeft) left = maxLeft;
+      if (top < minTop) top = minTop;
       if (top > maxTop) top = maxTop;
 
       root.style.left = left + 'px';
@@ -464,7 +594,10 @@
     function styleModeButton(btn, text, selected, theme) {
       btn.textContent = text;
       btn.style.cssText = [
-        'padding:8px 12px','border-radius:10px','font:13px/1.4 sans-serif','cursor:pointer',
+        'padding:8px 12px',
+        'border-radius:10px',
+        'font:13px/1.4 sans-serif',
+        'cursor:pointer',
         'border:1px solid ' + (selected ? theme.strong : 'rgba(0,0,0,.12)'),
         'background:' + (selected ? theme.strong : '#fff'),
         'color:' + (selected ? '#fff' : '#111')
@@ -481,7 +614,9 @@
       btn.textContent = selected ? `✅ ${text}` : text;
       btn.disabled = !enabled;
       btn.style.cssText = [
-        'padding:7px 10px','border-radius:8px','font:13px/1.4 sans-serif',
+        'padding:7px 10px',
+        'border-radius:8px',
+        'font:13px/1.4 sans-serif',
         'cursor:' + (enabled ? 'pointer' : 'not-allowed'),
         'border:1px solid ' + (enabled ? (selected ? theme.strong : theme.border) : 'rgba(0,0,0,.12)'),
         'background:' + (enabled ? (selected ? theme.strong : '#fff') : '#f3f4f6'),
@@ -494,7 +629,9 @@
       btn.textContent = text;
       btn.disabled = !active;
       btn.style.cssText = [
-        'padding:8px 12px','border-radius:10px','font:13px/1.4 sans-serif',
+        'padding:8px 12px',
+        'border-radius:10px',
+        'font:13px/1.4 sans-serif',
         'cursor:' + (active ? 'pointer' : 'not-allowed'),
         'border:1px solid ' + (active ? THEME.exec.border : THEME.exec.mutedBorder),
         'background:' + (active ? THEME.exec.strong : THEME.exec.mutedBg),
@@ -506,8 +643,13 @@
     function styleToolButton(btn, text) {
       btn.textContent = text;
       btn.style.cssText = [
-        'padding:8px 12px','border-radius:10px','font:13px/1.4 sans-serif',
-        'cursor:pointer','border:1px solid rgba(0,0,0,.12)','background:#fff','color:#111'
+        'padding:8px 12px',
+        'border-radius:10px',
+        'font:13px/1.4 sans-serif',
+        'cursor:pointer',
+        'border:1px solid rgba(0,0,0,.12)',
+        'background:#fff',
+        'color:#111'
       ].join(';');
     }
 
@@ -600,11 +742,11 @@
       styleInput(outdentCustomCount, state.action === 'outdent' && state.outdentMode === 'custom', THEME.outdent);
       styleExecButton(runOutdent, '执行反缩进', state.action === 'outdent');
 
-      styleChip(addLabelBtn, '添加文件名标签', state.importOpt.addLabel, true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
-      styleChip(wrapNoneBtn, '无内容标签', state.importOpt.wrapMode === 'none', true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
-      styleChip(wrapContentBtn, '<content>', state.importOpt.wrapMode === 'content', true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
-      styleChip(wrapStartendBtn, 'START >>>', state.importOpt.wrapMode === 'startend', true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
-      styleChip(addSeparatorBtn, '添加分隔线', state.importOpt.addSeparator, true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
+      styleChip(addLabelBtn, '添加文件名标签', state.importOpt.addLabel, true, THEME.slate);
+      styleChip(wrapNoneBtn, '无内容标签', state.importOpt.wrapMode === 'none', true, THEME.slate);
+      styleChip(wrapContentBtn, '<content>', state.importOpt.wrapMode === 'content', true, THEME.slate);
+      styleChip(wrapStartendBtn, 'START >>>', state.importOpt.wrapMode === 'startend', true, THEME.slate);
+      styleChip(addSeparatorBtn, '添加分隔线', state.importOpt.addSeparator, true, THEME.slate);
       styleChip(gapBlankBtn, '留空行', state.importOpt.gapMode === 'blank', !state.importOpt.addSeparator, { strong:'#475569', border:'#94a3b8', text:'#475569' });
       styleChip(gapTightBtn, '不留空行', state.importOpt.gapMode === 'tight', !state.importOpt.addSeparator, { strong:'#475569', border:'#94a3b8', text:'#475569' });
 
@@ -617,6 +759,8 @@
       styleToolButton(selectAllBtn, '全部高亮');
       styleToolButton(clearBtn, '全部清空');
 
+      opacityRange.value = String(state.panelOpt.opacity);
+      applyPassThrough();
       updateDisplayLayer();
     }
 
@@ -636,7 +780,7 @@
       if (state.indentMode === '4') return 4;
       const n = parseInt(indentCustomCount.value, 10);
       if (!Number.isFinite(n) || n < 1) {
-        setStatus('自��义增加数量无效，请输入 1~64 的整数。');
+        setStatus('自定义增加数量无效，请输入 1~64 的整数。');
         return null;
       }
       return Math.min(64, n);
@@ -881,19 +1025,27 @@
       if (!d.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) d.moved = true;
       if (!d.moved) return;
 
-      const maxLeft = Math.max(0, window.innerWidth - root.offsetWidth - 4);
-      const maxTop = Math.max(0, window.innerHeight - root.offsetHeight - 4);
+      const rect = root.getBoundingClientRect();
+      const w = rect.width || root.offsetWidth;
+      const h = rect.height || root.offsetHeight;
+      const keepW = w / 3;
+      const keepH = h / 3;
 
-      let left = d.left + dx;
-      let top = d.top + dy;
+      let nl = d.left + (e.clientX - d.startX);
+      let nt = d.top + (e.clientY - d.startY);
 
-      if (left < 0) left = 0;
-      if (top < 0) top = 0;
-      if (left > maxLeft) left = maxLeft;
-      if (top > maxTop) top = maxTop;
+      const minLeft = -w + keepW;
+      const maxLeft = window.innerWidth - keepW;
+      const minTop = -h + keepH;
+      const maxTop = window.innerHeight - keepH;
 
-      root.style.left = left + 'px';
-      root.style.top = top + 'px';
+      if (nl < minLeft) nl = minLeft;
+      if (nl > maxLeft) nl = maxLeft;
+      if (nt < minTop) nt = minTop;
+      if (nt > maxTop) nt = maxTop;
+
+      root.style.left = nl + 'px';
+      root.style.top = nt + 'px';
     }
 
     function finishPointer(e) {
@@ -912,7 +1064,6 @@
       if (now - state.lastTap < 280) {
         state.lastTap = 0;
         setCollapsed(!state.collapsed);
-        clampPosition();
       } else {
         state.lastTap = now;
       }
@@ -939,6 +1090,10 @@
 
     title.addEventListener('pointerdown', e => {
       if (e.target === closeBtn || closeBtn.contains(e.target)) return;
+      if (e.target === passBtn || passBtn.contains(e.target)) return;
+      if (e.target === opacityRange || opacityRange.contains(e.target)) return;
+      if (titleRight.contains(e.target)) return;
+
       state.drag = {
         id: e.pointerId,
         startX: e.clientX,
@@ -957,6 +1112,24 @@
       e.preventDefault();
       e.stopPropagation();
       destroy();
+    });
+
+    passBtn.addEventListener('pointerdown', e => e.stopPropagation());
+    passBtn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      state.panelOpt.passThrough = !state.panelOpt.passThrough;
+      applyPassThrough();
+      setStatus(state.panelOpt.passThrough
+        ? '已开启透明穿透：标题栏以下区域可直接操作网页。'
+        : '已关闭透明穿透，恢复面板正常操作。');
+    });
+
+    opacityRange.addEventListener('pointerdown', e => e.stopPropagation());
+    opacityRange.addEventListener('input', () => {
+      state.panelOpt.opacity = parseInt(opacityRange.value, 10) || 100;
+      applyBodyOpacity();
+      if (!state.panelOpt.passThrough) root.style.pointerEvents = 'auto';
     });
 
     actionIndent.addEventListener('click', () => {
@@ -1068,7 +1241,7 @@
       if (state.importOpt.addSeparator) return;
       state.importOpt.gapMode = 'blank';
       updateUI();
-      setStatus('无分隔线时，边界默认留空行。');
+      setStatus('无分隔线时，边界留空行。');
     });
 
     gapTightBtn.addEventListener('click', () => {
@@ -1129,7 +1302,7 @@
     setStatus('就绪。');
     window[KEY] = { destroy, root };
   } catch (err) {
-    console.error('[indent_panel_v1.4.2]', err);
+    console.error('[indent_panel_v1.5.0]', err);
     showError('缩进面板加载失败：' + (err && err.message ? err.message : String(err)));
   }
 })();
