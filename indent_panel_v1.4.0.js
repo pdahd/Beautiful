@@ -1,6 +1,7 @@
 (() => {
-  const KEY = '__indentPanelV130__';
+  const KEY = '__indentPanelV140__';
   const PREV_KEYS = [
+    '__indentPanelV140__',
     '__indentPanelV130__',
     '__indentPanelV120__',
     '__indentPanelV111__',
@@ -10,11 +11,10 @@
 
   function showError(msg) {
     try {
-      const old = document.getElementById('__indent-panel-error-v130');
+      const old = document.getElementById('__indent-panel-error-v140');
       if (old) old.remove();
-
       const box = document.createElement('div');
-      box.id = '__indent-panel-error-v130';
+      box.id = '__indent-panel-error-v140';
       box.textContent = msg;
       box.style.cssText = [
         'position:fixed',
@@ -44,31 +44,11 @@
     });
 
     const THEME = {
-      indent: {
-        strong: '#2563eb',
-        soft: '#dbeafe',
-        border: '#93c5fd',
-        text: '#1d4ed8'
-      },
-      outdent: {
-        strong: '#d97706',
-        soft: '#fef3c7',
-        border: '#fbbf24',
-        text: '#92400e'
-      },
-      exec: {
-        strong: '#16a34a',
-        border: '#15803d',
-        text: '#ffffff',
-        mutedBg: '#b8cbbd',
-        mutedBorder: '#91a796',
-        mutedText: '#ffffff'
-      },
-      muted: {
-        bg: '#f3f4f6',
-        border: 'rgba(0,0,0,.08)',
-        text: '#6b7280'
-      }
+      indent: { strong:'#2563eb', soft:'#dbeafe', border:'#93c5fd', text:'#1d4ed8' },
+      outdent: { strong:'#d97706', soft:'#fef3c7', border:'#fbbf24', text:'#92400e' },
+      exec: { strong:'#16a34a', border:'#15803d', text:'#fff', mutedBg:'#b8cbbd', mutedBorder:'#91a796', mutedText:'#fff' },
+      purple: { strong:'#7e22ce', soft:'#faf5ff', border:'#d8b4fe', text:'#6b21a8', line:'rgba(147,51,234,.7)' },
+      muted: { bg:'#f3f4f6', border:'rgba(0,0,0,.08)', text:'#6b7280' }
     };
 
     const SUPPORTED_EXT = new Set([
@@ -83,12 +63,11 @@
       'text/*',
       'application/json',
       'application/xml',
-      '.txt','.text','.md','.markdown','.js','.mjs','.cjs',
-      '.ts','.tsx','.jsx','.json','.json5','.yaml','.yml','.xml',
-      '.html','.htm','.css','.scss','.less','.py','.sh','.bash','.zsh',
-      '.ini','.conf','.cfg','.toml','.properties','.log','.csv','.tsv',
-      '.sql','.java','.kt','.kts','.gradle','.rb','.php','.go','.rs',
-      '.c','.cc','.cpp','.h','.hpp','.srt','.vtt','.lrc','.bat','.ps1'
+      '.txt','.text','.md','.markdown','.js','.mjs','.cjs','.ts','.tsx','.jsx',
+      '.json','.json5','.yaml','.yml','.xml','.html','.htm','.css','.scss','.less',
+      '.py','.sh','.bash','.zsh','.ini','.conf','.cfg','.toml','.properties',
+      '.log','.csv','.tsv','.sql','.java','.kt','.kts','.gradle','.rb','.php','.go',
+      '.rs','.c','.cc','.cpp','.h','.hpp','.srt','.vtt','.lrc','.bat','.ps1'
     ].join(',');
 
     const state = {
@@ -98,22 +77,27 @@
       action: 'indent',
       indentMode: '2',
       outdentMode: 'flush',
-      fileMeta: null, // null | {type:'single',name,base,ext} | {type:'multi',files:[...]}
-      multiOptions: {
+      source: { type: 'plain', files: [], primary: null },
+      importOpt: {
         addLabel: true,
+        wrapMode: 'none',      // none | content | startend
         addSeparator: true,
-        gapMode: 'blank' // blank | tight (仅 addSeparator=false 时生效)
+        gapMode: 'blank'       // blank | tight
+      },
+      displayOpt: {
+        showGuide: false,
+        showLines: false
       }
     };
 
     const root = document.createElement('div');
-    root.id = '__indent-panel-v130';
+    root.id = '__indent-panel-v140';
     root.style.cssText = [
       'position:fixed',
       'left:16px',
       'top:72px',
-      'width:min(96vw,840px)',
-      'max-width:840px',
+      'width:min(98vw,1000px)',
+      'max-width:1000px',
       'min-width:360px',
       'background:#fff',
       'color:#111',
@@ -127,63 +111,55 @@
 
     root.innerHTML = `
       <div data-role="title" style="
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:10px;
-        padding:10px 12px;
-        background:#f6f7f9;
-        border-bottom:1px solid rgba(0,0,0,.08);
-        cursor:move;
-        user-select:none;
-        -webkit-user-select:none;
-        touch-action:none;
+        display:flex;align-items:center;justify-content:space-between;gap:10px;
+        padding:10px 12px;background:#f6f7f9;border-bottom:1px solid rgba(0,0,0,.08);
+        cursor:move;user-select:none;-webkit-user-select:none;touch-action:none;
       ">
         <div data-role="title-text" style="
-          font-weight:600;
-          font-size:14px;
-          white-space:nowrap;
-          overflow:hidden;
-          text-overflow:ellipsis;
+          font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
         ">缩进处理面板</div>
-
         <button data-role="close" style="
-          flex:none;
-          width:28px;
-          height:28px;
-          border:1px solid rgba(0,0,0,.12);
-          border-radius:8px;
-          background:#fff;
-          color:#111;
-          font:16px/1 sans-serif;
-          cursor:pointer;
+          flex:none;width:28px;height:28px;border:1px solid rgba(0,0,0,.12);
+          border-radius:8px;background:#fff;color:#111;font:16px/1 sans-serif;cursor:pointer;
         ">×</button>
       </div>
 
-      <div data-role="body" style="
-        display:flex;
-        flex-direction:column;
-        gap:10px;
-        padding:12px;
-      ">
+      <div data-role="body" style="display:flex;flex-direction:column;gap:10px;padding:12px;">
         <div style="font-size:12px;color:#666;">
           有选区时仅处理选中行；无选区时处理全文。双击标题栏可折叠/展开，拖动标题栏可移动面板。
         </div>
 
-        <textarea data-role="textarea" spellcheck="false" placeholder="把文本粘贴到这里，或导入本地文本文件……" style="
-          width:100%;
-          min-height:480px;
-          max-height:82vh;
-          padding:12px;
-          border:1px solid rgba(0,0,0,.12);
-          border-radius:10px;
-          background:#fff;
-          color:#111;
-          font:13px/1.65 monospace;
-          resize:vertical;
-          box-sizing:border-box;
-          outline:none;
-        "></textarea>
+        <div data-role="editor-wrap" style="
+          position:relative;display:flex;align-items:stretch;
+          border:1px solid rgba(0,0,0,.12);border-radius:10px;overflow:hidden;background:#fff;
+        ">
+          <div data-role="gutter-wrap" style="
+            display:none;flex:none;width:60px;background:#faf5ff;border-right:1px solid rgba(0,0,0,.08);overflow:hidden;
+          ">
+            <div data-role="gutter" style="
+              padding:12px 8px;font:13px/1.65 monospace;color:#7e22ce;text-align:right;white-space:pre;
+              transform:translateY(0);
+            "></div>
+          </div>
+
+          <div data-role="text-wrap" style="position:relative;flex:1;min-width:0;background:#fff;">
+            <textarea data-role="textarea" spellcheck="false" placeholder="把文本粘贴到这里，或导入本地文本文件……" style="
+              width:100%;height:62vh;min-height:520px;max-height:82vh;
+              padding:12px;border:0;border-radius:0;background:#fff;color:#111;
+              font:13px/1.65 monospace;resize:vertical;box-sizing:border-box;outline:none;
+            "></textarea>
+
+            <div data-role="guide" style="
+              position:absolute;top:0;bottom:0;width:1px;background:rgba(147,51,234,.7);
+              pointer-events:none;display:none;
+            "></div>
+
+            <div data-role="mirror" style="
+              position:absolute;left:-99999px;top:0;visibility:hidden;pointer-events:none;
+              white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;
+            "></div>
+          </div>
+        </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
           <button data-role="action-indent"></button>
@@ -191,67 +167,55 @@
         </div>
 
         <div data-role="indent-box" style="
-          display:flex;
-          flex-wrap:wrap;
-          align-items:center;
-          gap:8px;
-          padding:10px;
-          border-radius:10px;
-          border:1px solid rgba(0,0,0,.08);
+          display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+          padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);
         ">
           <span style="font-size:12px;color:#666;">缩进选项</span>
           <button data-role="indent-2"></button>
           <button data-role="indent-4"></button>
           <button data-role="indent-custom"></button>
           <input data-role="indent-custom-count" type="number" min="1" max="64" value="2" inputmode="numeric" style="
-            width:86px;
-            padding:7px 8px;
-            border:1px solid rgba(0,0,0,.12);
-            border-radius:8px;
-            font:13px/1.4 sans-serif;
-            box-sizing:border-box;
+            width:92px;padding:7px 8px;border:1px solid rgba(0,0,0,.12);
+            border-radius:8px;font:13px/1.4 sans-serif;box-sizing:border-box;
           ">
           <button data-role="run-indent"></button>
         </div>
 
         <div data-role="outdent-box" style="
-          display:flex;
-          flex-wrap:wrap;
-          align-items:center;
-          gap:8px;
-          padding:10px;
-          border-radius:10px;
-          border:1px solid rgba(0,0,0,.08);
+          display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+          padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);
         ">
           <span style="font-size:12px;color:#666;">反缩进选项</span>
           <button data-role="outdent-flush"></button>
           <button data-role="outdent-custom"></button>
           <input data-role="outdent-custom-count" type="number" min="1" max="64" value="2" inputmode="numeric" style="
-            width:86px;
-            padding:7px 8px;
-            border:1px solid rgba(0,0,0,.12);
-            border-radius:8px;
-            font:13px/1.4 sans-serif;
-            box-sizing:border-box;
+            width:92px;padding:7px 8px;border:1px solid rgba(0,0,0,.12);
+            border-radius:8px;font:13px/1.4 sans-serif;box-sizing:border-box;
           ">
           <button data-role="run-outdent"></button>
         </div>
 
-        <div data-role="io-box" style="
-          display:flex;
-          flex-wrap:wrap;
-          align-items:center;
-          gap:8px;
-          padding:10px;
-          border-radius:10px;
-          border:1px solid rgba(0,0,0,.08);
-          background:#fafafa;
+        <div data-role="import-box" style="
+          display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+          padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);background:#fafafa;
         ">
-          <span style="font-size:12px;color:#666;">多文件导入选项（仅多文件导入生效）</span>
-          <button data-role="multi-label"></button>
-          <button data-role="multi-separator"></button>
-          <button data-role="multi-gap-blank"></button>
-          <button data-role="multi-gap-tight"></button>
+          <span style="font-size:12px;color:#666;">导入包装选项</span>
+          <button data-role="add-label"></button>
+          <button data-role="wrap-none"></button>
+          <button data-role="wrap-content"></button>
+          <button data-role="wrap-startend"></button>
+          <button data-role="add-separator"></button>
+          <button data-role="gap-blank"></button>
+          <button data-role="gap-tight"></button>
+        </div>
+
+        <div data-role="display-box" style="
+          display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+          padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);background:#fafafa;
+        ">
+          <span style="font-size:12px;color:#666;">显示选项</span>
+          <button data-role="show-guide"></button>
+          <button data-role="show-lines"></button>
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
@@ -263,17 +227,8 @@
           <input data-role="file-input" type="file" multiple accept="${ACCEPT}" style="display:none">
         </div>
 
-        <div data-role="meta" style="
-          min-height:18px;
-          font-size:12px;
-          color:#666;
-        "></div>
-
-        <div data-role="status" style="
-          min-height:18px;
-          font-size:12px;
-          color:#666;
-        ">就绪</div>
+        <div data-role="meta" style="min-height:18px;font-size:12px;color:#666;"></div>
+        <div data-role="status" style="min-height:18px;font-size:12px;color:#666;">就绪</div>
       </div>
     `;
 
@@ -283,7 +238,14 @@
     const titleText = root.querySelector('[data-role="title-text"]');
     const closeBtn = root.querySelector('[data-role="close"]');
     const body = root.querySelector('[data-role="body"]');
+
+    const editorWrap = root.querySelector('[data-role="editor-wrap"]');
+    const gutterWrap = root.querySelector('[data-role="gutter-wrap"]');
+    const gutter = root.querySelector('[data-role="gutter"]');
+    const textWrap = root.querySelector('[data-role="text-wrap"]');
     const textarea = root.querySelector('[data-role="textarea"]');
+    const guide = root.querySelector('[data-role="guide"]');
+    const mirror = root.querySelector('[data-role="mirror"]');
 
     const actionIndent = root.querySelector('[data-role="action-indent"]');
     const actionOutdent = root.querySelector('[data-role="action-outdent"]');
@@ -301,11 +263,18 @@
     const outdentCustomCount = root.querySelector('[data-role="outdent-custom-count"]');
     const runOutdent = root.querySelector('[data-role="run-outdent"]');
 
-    const ioBox = root.querySelector('[data-role="io-box"]');
-    const multiLabelBtn = root.querySelector('[data-role="multi-label"]');
-    const multiSeparatorBtn = root.querySelector('[data-role="multi-separator"]');
-    const multiGapBlankBtn = root.querySelector('[data-role="multi-gap-blank"]');
-    const multiGapTightBtn = root.querySelector('[data-role="multi-gap-tight"]');
+    const importBox = root.querySelector('[data-role="import-box"]');
+    const addLabelBtn = root.querySelector('[data-role="add-label"]');
+    const wrapNoneBtn = root.querySelector('[data-role="wrap-none"]');
+    const wrapContentBtn = root.querySelector('[data-role="wrap-content"]');
+    const wrapStartendBtn = root.querySelector('[data-role="wrap-startend"]');
+    const addSeparatorBtn = root.querySelector('[data-role="add-separator"]');
+    const gapBlankBtn = root.querySelector('[data-role="gap-blank"]');
+    const gapTightBtn = root.querySelector('[data-role="gap-tight"]');
+
+    const displayBox = root.querySelector('[data-role="display-box"]');
+    const showGuideBtn = root.querySelector('[data-role="show-guide"]');
+    const showLinesBtn = root.querySelector('[data-role="show-lines"]');
 
     const importBtn = root.querySelector('[data-role="import"]');
     const exportBtn = root.querySelector('[data-role="export"]');
@@ -321,19 +290,134 @@
       statusEl.textContent = msg;
     }
 
+    function sanitizeBaseName(name) {
+      return (name || 'text').replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, ' ').trim() || 'text';
+    }
+
+    function makeTimestamp() {
+      const d = new Date();
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+    }
+
+    function parseFileMeta(file) {
+      const name = file && file.name ? file.name : 'imported.txt';
+      const idx = name.lastIndexOf('.');
+      const base = idx > 0 ? name.slice(0, idx) : name;
+      const ext = idx > 0 ? name.slice(idx + 1).toLowerCase() : 'txt';
+      return { name, base, ext };
+    }
+
+    function isSupportedTextFile(file) {
+      const meta = parseFileMeta(file);
+      if (meta.ext === 'pdf') return false;
+      if (file.type && file.type.startsWith('text/')) return true;
+      if (file.type === 'application/json' || file.type === 'application/xml') return true;
+      return SUPPORTED_EXT.has(meta.ext);
+    }
+
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+        reader.onerror = () => reject(new Error((file && file.name) || 'unknown'));
+        try {
+          reader.readAsText(file, 'utf-8');
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }
+
+    function guessMime(ext) {
+      const map = {
+        txt:'text/plain;charset=utf-8',
+        md:'text/markdown;charset=utf-8',
+        markdown:'text/markdown;charset=utf-8',
+        js:'application/javascript;charset=utf-8',
+        mjs:'application/javascript;charset=utf-8',
+        cjs:'application/javascript;charset=utf-8',
+        ts:'application/typescript;charset=utf-8',
+        json:'application/json;charset=utf-8',
+        yaml:'text/yaml;charset=utf-8',
+        yml:'text/yaml;charset=utf-8',
+        xml:'application/xml;charset=utf-8',
+        html:'text/html;charset=utf-8',
+        htm:'text/html;charset=utf-8',
+        css:'text/css;charset=utf-8',
+        py:'text/plain;charset=utf-8',
+        srt:'text/plain;charset=utf-8'
+      };
+      return map[ext] || 'text/plain;charset=utf-8';
+    }
+
+    function stripLeadingNewlines(text) {
+      return String(text).replace(/^[\r\n]+/, '');
+    }
+
+    function stripTrailingNewlines(text) {
+      return String(text).replace(/[\r\n]+$/, '');
+    }
+
+    function stripEdgeNewlines(text) {
+      return stripTrailingNewlines(stripLeadingNewlines(text));
+    }
+
+    function makeJoiner() {
+      if (state.importOpt.addSeparator) return '\n\n----------\n\n';
+      return state.importOpt.gapMode === 'blank' ? '\n\n' : '\n';
+    }
+
+    function buildWrappedPiece(meta, text) {
+      const content = stripEdgeNewlines(text);
+      const lines = [];
+
+      if (state.importOpt.addLabel) {
+        lines.push(`【${meta.name}】`);
+      }
+
+      if (state.importOpt.wrapMode === 'content') {
+        lines.push('<content>');
+        lines.push(content);
+        lines.push('</content>');
+      } else if (state.importOpt.wrapMode === 'startend') {
+        lines.push('START >>>');
+        lines.push(content);
+        lines.push('<<< END');
+      } else {
+        lines.push(content);
+      }
+
+      return lines.join('\n');
+    }
+
+    function joinTextBlocks(left, right) {
+      const a = stripTrailingNewlines(left || '');
+      const b = stripLeadingNewlines(right || '');
+      if (!a) return b;
+      if (!b) return a;
+      return a + makeJoiner() + b;
+    }
+
+    function mergePiecesSequentially(pieces) {
+      if (!pieces.length) return '';
+      let out = stripEdgeNewlines(pieces[0]);
+      for (let i = 1; i < pieces.length; i++) {
+        out = joinTextBlocks(out, pieces[i]);
+      }
+      return out;
+    }
+
     function updateMeta() {
-      if (!state.fileMeta) {
+      const s = state.source;
+      if (s.type === 'plain') {
         metaEl.textContent = '当前来源：散文本 / 手动粘贴（导出默认 .txt）';
-        return;
-      }
-
-      if (state.fileMeta.type === 'single') {
-        metaEl.textContent = `当前来源：已导入单文件 ${state.fileMeta.name}（导出保持 .${state.fileMeta.ext}）`;
-        return;
-      }
-
-      if (state.fileMeta.type === 'multi') {
-        metaEl.textContent = `当前来源：多文件导入 ${state.fileMeta.files.length} 个（导出固定为 timestamp_merged_files.txt）`;
+      } else if (s.type === 'single') {
+        metaEl.textContent = `当前来源：单文件导入 ${s.primary.name}（当前仍可保持原扩展名 .${s.primary.ext} 导出）`;
+      } else if (s.type === 'multi') {
+        metaEl.textContent = `当前来源：多文件追加导入，共 ${s.files.length} 个文件（导出固定为 timestamp_merged_files.txt）`;
+      } else {
+        metaEl.textContent = `当前来源：散文本 + 导入文件的混合内容（导出固定为 timestamp_merged_files.txt）`;
       }
     }
 
@@ -362,12 +446,8 @@
 
     function styleModeButton(btn, text, selected, theme) {
       btn.textContent = text;
-      btn.disabled = false;
       btn.style.cssText = [
-        'padding:8px 12px',
-        'border-radius:10px',
-        'font:13px/1.4 sans-serif',
-        'cursor:pointer',
+        'padding:8px 12px','border-radius:10px','font:13px/1.4 sans-serif','cursor:pointer',
         'border:1px solid ' + (selected ? theme.strong : 'rgba(0,0,0,.12)'),
         'background:' + (selected ? theme.strong : '#fff'),
         'color:' + (selected ? '#fff' : '#111')
@@ -384,25 +464,11 @@
       btn.textContent = selected ? `✅ ${text}` : text;
       btn.disabled = !enabled;
       btn.style.cssText = [
-        'padding:7px 10px',
-        'border-radius:8px',
-        'font:13px/1.4 sans-serif',
+        'padding:7px 10px','border-radius:8px','font:13px/1.4 sans-serif',
         'cursor:' + (enabled ? 'pointer' : 'not-allowed'),
-        'border:1px solid ' + (
-          enabled
-            ? (selected ? theme.strong : theme.border)
-            : 'rgba(0,0,0,.12)'
-        ),
-        'background:' + (
-          enabled
-            ? (selected ? theme.strong : '#fff')
-            : '#f3f4f6'
-        ),
-        'color:' + (
-          enabled
-            ? (selected ? '#fff' : theme.text)
-            : '#999'
-        ),
+        'border:1px solid ' + (enabled ? (selected ? theme.strong : theme.border) : 'rgba(0,0,0,.12)'),
+        'background:' + (enabled ? (selected ? theme.strong : '#fff') : '#f3f4f6'),
+        'color:' + (enabled ? (selected ? '#fff' : theme.text) : '#999'),
         'opacity:' + (enabled ? '1' : '.7')
       ].join(';');
     }
@@ -411,9 +477,7 @@
       btn.textContent = text;
       btn.disabled = !active;
       btn.style.cssText = [
-        'padding:8px 12px',
-        'border-radius:10px',
-        'font:13px/1.4 sans-serif',
+        'padding:8px 12px','border-radius:10px','font:13px/1.4 sans-serif',
         'cursor:' + (active ? 'pointer' : 'not-allowed'),
         'border:1px solid ' + (active ? THEME.exec.border : THEME.exec.mutedBorder),
         'background:' + (active ? THEME.exec.strong : THEME.exec.mutedBg),
@@ -424,15 +488,9 @@
 
     function styleToolButton(btn, text) {
       btn.textContent = text;
-      btn.disabled = false;
       btn.style.cssText = [
-        'padding:8px 12px',
-        'border-radius:10px',
-        'font:13px/1.4 sans-serif',
-        'cursor:pointer',
-        'border:1px solid rgba(0,0,0,.12)',
-        'background:#fff',
-        'color:#111'
+        'padding:8px 12px','border-radius:10px','font:13px/1.4 sans-serif',
+        'cursor:pointer','border:1px solid rgba(0,0,0,.12)','background:#fff','color:#111'
       ].join(';');
     }
 
@@ -444,17 +502,79 @@
       input.style.borderColor = enabled ? theme.border : 'rgba(0,0,0,.12)';
     }
 
+    function updateLineNumbers() {
+      if (!state.displayOpt.showLines) {
+        gutterWrap.style.display = 'none';
+        return;
+      }
+      gutterWrap.style.display = 'block';
+      const count = Math.max(1, textarea.value.split('\n').length);
+      const lines = [];
+      for (let i = 1; i <= count; i++) lines.push(String(i));
+      gutter.textContent = lines.join('\n');
+      gutter.style.transform = `translateY(${-textarea.scrollTop}px)`;
+    }
+
+    function syncMirrorStyle() {
+      const cs = getComputedStyle(textarea);
+      mirror.style.width = textarea.clientWidth + 'px';
+      mirror.style.paddingTop = cs.paddingTop;
+      mirror.style.paddingRight = cs.paddingRight;
+      mirror.style.paddingBottom = cs.paddingBottom;
+      mirror.style.paddingLeft = cs.paddingLeft;
+      mirror.style.font = cs.font;
+      mirror.style.lineHeight = cs.lineHeight;
+      mirror.style.letterSpacing = cs.letterSpacing;
+      mirror.style.tabSize = cs.tabSize || '8';
+      mirror.style.textTransform = cs.textTransform;
+      mirror.style.textIndent = cs.textIndent;
+    }
+
+    function updateGuide() {
+      if (!state.displayOpt.showGuide || document.activeElement !== textarea) {
+        guide.style.display = 'none';
+        return;
+      }
+
+      syncMirrorStyle();
+      const pos = textarea.selectionStart || 0;
+      const before = textarea.value.slice(0, pos);
+
+      mirror.innerHTML = '';
+      mirror.appendChild(document.createTextNode(before));
+      const marker = document.createElement('span');
+      marker.textContent = '\u200b';
+      mirror.appendChild(marker);
+
+      let x = marker.offsetLeft - textarea.scrollLeft;
+      if (x < 0 || x > textarea.clientWidth) {
+        guide.style.display = 'none';
+        return;
+      }
+
+      guide.style.display = 'block';
+      guide.style.left = x + 'px';
+      guide.style.height = textarea.clientHeight + 'px';
+      guide.style.top = '0';
+    }
+
+    function updateDisplayLayer() {
+      updateLineNumbers();
+      updateGuide();
+    }
+
     function updateUI() {
       styleModeButton(actionIndent, '缩进模式', state.action === 'indent', THEME.indent);
       styleModeButton(actionOutdent, '反缩进模式', state.action === 'outdent', THEME.outdent);
 
       styleSection(indentBox, state.action === 'indent', THEME.indent);
       styleSection(outdentBox, state.action === 'outdent', THEME.outdent);
-      styleSection(ioBox, true, { soft:'#f8fafc', border:'#dbe3ea' });
+      styleSection(importBox, true, { soft:'#f8fafc', border:'#dbe3ea' });
+      styleSection(displayBox, true, THEME.purple);
 
       styleChip(indent2, '缩进2格', state.indentMode === '2', state.action === 'indent', THEME.indent);
       styleChip(indent4, '缩进4格', state.indentMode === '4', state.action === 'indent', THEME.indent);
-      styleChip(indentCustom, '自定义缩进', state.indentMode === 'custom', state.action === 'indent', THEME.indent);
+      styleChip(indentCustom, '自定义增加', state.indentMode === 'custom', state.action === 'indent', THEME.indent);
       styleInput(indentCustomCount, state.action === 'indent' && state.indentMode === 'custom', THEME.indent);
       styleExecButton(runIndent, '执行缩进', state.action === 'indent');
 
@@ -463,27 +583,24 @@
       styleInput(outdentCustomCount, state.action === 'outdent' && state.outdentMode === 'custom', THEME.outdent);
       styleExecButton(runOutdent, '执行反缩进', state.action === 'outdent');
 
-      styleChip(multiLabelBtn, '添加文件名标签', state.multiOptions.addLabel, true, {
-        strong:'#334155', border:'#94a3b8', text:'#334155'
-      });
+      styleChip(addLabelBtn, '添加文件名标签', state.importOpt.addLabel, true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
+      styleChip(wrapNoneBtn, '无内容标签', state.importOpt.wrapMode === 'none', true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
+      styleChip(wrapContentBtn, '<content>', state.importOpt.wrapMode === 'content', true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
+      styleChip(wrapStartendBtn, 'START >>>', state.importOpt.wrapMode === 'startend', true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
+      styleChip(addSeparatorBtn, '添加分隔线', state.importOpt.addSeparator, true, { strong:'#334155', border:'#94a3b8', text:'#334155' });
+      styleChip(gapBlankBtn, '默认留空行', state.importOpt.gapMode === 'blank', !state.importOpt.addSeparator, { strong:'#475569', border:'#94a3b8', text:'#475569' });
+      styleChip(gapTightBtn, '不留空行', state.importOpt.gapMode === 'tight', !state.importOpt.addSeparator, { strong:'#475569', border:'#94a3b8', text:'#475569' });
 
-      styleChip(multiSeparatorBtn, '添加分隔线', state.multiOptions.addSeparator, true, {
-        strong:'#334155', border:'#94a3b8', text:'#334155'
-      });
-
-      const gapEnabled = !state.multiOptions.addSeparator;
-      styleChip(multiGapBlankBtn, '默认留空行', state.multiOptions.gapMode === 'blank', gapEnabled, {
-        strong:'#475569', border:'#94a3b8', text:'#475569'
-      });
-      styleChip(multiGapTightBtn, '不留空行', state.multiOptions.gapMode === 'tight', gapEnabled, {
-        strong:'#475569', border:'#94a3b8', text:'#475569'
-      });
+      styleChip(showGuideBtn, '显示参考线', state.displayOpt.showGuide, true, THEME.purple);
+      styleChip(showLinesBtn, '显示行号', state.displayOpt.showLines, true, THEME.purple);
 
       styleToolButton(importBtn, '导入文件');
       styleToolButton(exportBtn, '导出文件');
       styleToolButton(copyBtn, '全部复制');
       styleToolButton(selectAllBtn, '全部高亮');
       styleToolButton(clearBtn, '全部清空');
+
+      updateDisplayLayer();
     }
 
     function flashButton(btn) {
@@ -500,10 +617,9 @@
     function getIndentCount() {
       if (state.indentMode === '2') return 2;
       if (state.indentMode === '4') return 4;
-
       const n = parseInt(indentCustomCount.value, 10);
       if (!Number.isFinite(n) || n < 1) {
-        setStatus('自定义缩进数量无效，请输入 1~64 的整数。');
+        setStatus('自定义增加数量无效，请输入 1~64 的整数。');
         return null;
       }
       return Math.min(64, n);
@@ -511,10 +627,9 @@
 
     function getOutdentCount() {
       if (state.outdentMode === 'flush') return 'flush';
-
       const n = parseInt(outdentCustomCount.value, 10);
       if (!Number.isFinite(n) || n < 1) {
-        setStatus('自定义减少缩进数量无效，请输入 1~64 的整数。');
+        setStatus('自定义减少数量无效，请输入 1~64 的整数。');
         return null;
       }
       return Math.min(64, n);
@@ -559,6 +674,7 @@
         textarea.selectionEnd = 0;
         setStatus(`已对全文执行${label}。`);
       }
+      updateDisplayLayer();
     }
 
     function doIndent() {
@@ -577,7 +693,6 @@
     function doOutdent() {
       const mode = getOutdentCount();
       if (mode == null) return;
-
       if (mode === 'flush') {
         transformLines(line => line.replace(/^[ \t]+/, ''), '顶格反缩进');
       } else {
@@ -588,7 +703,6 @@
     async function copyAll() {
       flashButton(copyBtn);
       const text = textarea.value;
-
       if (!text) {
         setStatus('输入框为空，没有可复制的内容。');
         return;
@@ -620,107 +734,17 @@
       textarea.focus();
       textarea.select();
       setStatus('已高亮全部内容。');
+      updateGuide();
     }
 
     function clearAll() {
       flashButton(clearBtn);
       textarea.value = '';
-      state.fileMeta = null;
+      state.source = { type: 'plain', files: [], primary: null };
       updateMeta();
       textarea.focus();
       setStatus('已清空全部内容。');
-    }
-
-    function parseFileMeta(file) {
-      const name = file && file.name ? file.name : 'imported.txt';
-      const idx = name.lastIndexOf('.');
-      const base = idx > 0 ? name.slice(0, idx) : name;
-      const ext = idx > 0 ? name.slice(idx + 1).toLowerCase() : 'txt';
-      return { name, base, ext };
-    }
-
-    function sanitizeBaseName(name) {
-      return (name || 'text')
-        .replace(/[\\/:*?"<>|]+/g, '_')
-        .replace(/\s+/g, ' ')
-        .trim() || 'text';
-    }
-
-    function makeTimestamp() {
-      const d = new Date();
-      const p = n => String(n).padStart(2, '0');
-      return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-    }
-
-    function guessMime(ext) {
-      const map = {
-        txt: 'text/plain;charset=utf-8',
-        md: 'text/markdown;charset=utf-8',
-        markdown: 'text/markdown;charset=utf-8',
-        js: 'application/javascript;charset=utf-8',
-        mjs: 'application/javascript;charset=utf-8',
-        cjs: 'application/javascript;charset=utf-8',
-        ts: 'application/typescript;charset=utf-8',
-        json: 'application/json;charset=utf-8',
-        yaml: 'text/yaml;charset=utf-8',
-        yml: 'text/yaml;charset=utf-8',
-        xml: 'application/xml;charset=utf-8',
-        html: 'text/html;charset=utf-8',
-        htm: 'text/html;charset=utf-8',
-        css: 'text/css;charset=utf-8',
-        py: 'text/plain;charset=utf-8',
-        srt: 'text/plain;charset=utf-8'
-      };
-      return map[ext] || 'text/plain;charset=utf-8';
-    }
-
-    function isSupportedTextFile(file) {
-      const meta = parseFileMeta(file);
-      if (meta.ext === 'pdf') return false;
-      if (file.type && file.type.startsWith('text/')) return true;
-      if (file.type === 'application/json' || file.type === 'application/xml') return true;
-      return SUPPORTED_EXT.has(meta.ext);
-    }
-
-    function readFileAsText(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-        reader.onerror = () => reject(new Error(file.name + ' 读取失败'));
-        try {
-          reader.readAsText(file, 'utf-8');
-        } catch (e) {
-          reject(e);
-        }
-      });
-    }
-
-    function stripEdgeNewlines(text) {
-      return String(text).replace(/^[\r\n]+/, '').replace(/[\r\n]+$/, '');
-    }
-
-    function makeMultiJoiner() {
-      if (state.multiOptions.addSeparator) {
-        return '\n\n----------\n\n';
-      }
-      return state.multiOptions.gapMode === 'tight' ? '\n' : '\n\n';
-    }
-
-    function makeLabeledPiece(meta, text) {
-      if (!state.multiOptions.addLabel) return String(text);
-      return `【${meta.name}】\n${String(text)}`;
-    }
-
-    function mergePiecesSequentially(pieces) {
-      if (!pieces.length) return '';
-      let out = stripEdgeNewlines(pieces[0]);
-
-      for (let i = 1; i < pieces.length; i++) {
-        const next = stripEdgeNewlines(pieces[i]);
-        const joiner = makeMultiJoiner();
-        out = stripEdgeNewlines(out) + joiner + next;
-      }
-      return out;
+      updateDisplayLayer();
     }
 
     async function importFiles(files) {
@@ -729,9 +753,9 @@
       const supported = [];
       const skipped = [];
 
-      for (const file of files) {
-        if (isSupportedTextFile(file)) supported.push(file);
-        else skipped.push(file.name || 'unknown');
+      for (const f of files) {
+        if (isSupportedTextFile(f)) supported.push(f);
+        else skipped.push(f.name || 'unknown');
       }
 
       if (!supported.length) {
@@ -739,30 +763,13 @@
         return;
       }
 
-      if (supported.length === 1) {
-        const file = supported[0];
-        const meta = parseFileMeta(file);
-        try {
-          const text = await readFileAsText(file);
-          textarea.value = text;
-          state.fileMeta = { type: 'single', ...meta };
-          updateMeta();
-          setStatus(skipped.length
-            ? `已导入单文件：${meta.name}；跳过 ${skipped.length} 个不支持文件。`
-            : `已导入单文件：${meta.name}`);
-        } catch (_) {
-          setStatus(`文件导入失败：${meta.name}`);
-        }
-        return;
-      }
-
       const items = [];
       const failed = [];
 
-      for (const file of supported) {
-        const meta = parseFileMeta(file);
+      for (const f of supported) {
+        const meta = parseFileMeta(f);
         try {
-          const text = await readFileAsText(file);
+          const text = await readFileAsText(f);
           items.push({ meta, text });
         } catch (_) {
           failed.push(meta.name);
@@ -770,27 +777,61 @@
       }
 
       if (!items.length) {
-        setStatus('多文件导入失败：没有成功读取任何文本文件。');
+        setStatus('导入失败：没有成功读取任何文本文件。');
         return;
       }
 
-      const pieces = items.map(item => makeLabeledPiece(item.meta, item.text));
-      textarea.value = mergePiecesSequentially(pieces);
-      state.fileMeta = {
-        type: 'multi',
-        files: items.map(item => item.meta)
-      };
-      updateMeta();
+      const pieces = items.map(item => buildWrappedPiece(item.meta, item.text));
+      const bundle = mergePiecesSequentially(pieces);
 
-      const parts = [`已导入多文件 ${items.length} 个`];
-      if (skipped.length) parts.push(`跳过不支持文件 ${skipped.length} 个`);
-      if (failed.length) parts.push(`读取失败 ${failed.length} 个`);
-      setStatus(parts.join('；') + '。');
+      const hadExistingText = textarea.value.length > 0;
+      const prev = state.source;
+
+      if (!hadExistingText && prev.type === 'plain') {
+        textarea.value = bundle;
+        if (items.length === 1) {
+          state.source = { type: 'single', files: [items[0].meta], primary: items[0].meta };
+        } else {
+          state.source = { type: 'multi', files: items.map(x => x.meta), primary: null };
+        }
+      } else {
+        textarea.value = joinTextBlocks(textarea.value, bundle);
+
+        if (prev.type === 'plain') {
+          state.source = { type: 'mixed', files: items.map(x => x.meta), primary: null };
+        } else if (prev.type === 'single') {
+          state.source = {
+            type: 'multi',
+            files: [...prev.files, ...items.map(x => x.meta)],
+            primary: null
+          };
+        } else if (prev.type === 'multi') {
+          state.source = {
+            type: 'multi',
+            files: [...prev.files, ...items.map(x => x.meta)],
+            primary: null
+          };
+        } else {
+          state.source = {
+            type: 'mixed',
+            files: [...prev.files, ...items.map(x => x.meta)],
+            primary: null
+          };
+        }
+      }
+
+      updateMeta();
+      updateDisplayLayer();
+
+      const msg = [];
+      msg.push(`已导入 ${items.length} 个文件`);
+      if (skipped.length) msg.push(`跳过不支持文件 ${skipped.length} 个`);
+      if (failed.length) msg.push(`读取失败 ${failed.length} 个`);
+      setStatus(msg.join('；') + '。');
     }
 
     function exportFile() {
       flashButton(exportBtn);
-
       const text = textarea.value;
       if (!text) {
         setStatus('输入框为空，没有可导出的内容。');
@@ -800,14 +841,12 @@
       let ext = 'txt';
       let base = 'text';
 
-      if (state.fileMeta) {
-        if (state.fileMeta.type === 'single') {
-          ext = state.fileMeta.ext || 'txt';
-          base = state.fileMeta.base || 'text';
-        } else if (state.fileMeta.type === 'multi') {
-          ext = 'txt';
-          base = 'merged_files';
-        }
+      if (state.source.type === 'single' && state.source.primary) {
+        ext = state.source.primary.ext || 'txt';
+        base = state.source.primary.base || 'text';
+      } else if (state.source.type === 'multi' || state.source.type === 'mixed') {
+        ext = 'txt';
+        base = 'merged_files';
       }
 
       const fileName = `${makeTimestamp()}_${sanitizeBaseName(base)}.${ext}`;
@@ -876,6 +915,7 @@
 
     function onResize() {
       clampPosition();
+      updateDisplayLayer();
     }
 
     function destroy() {
@@ -941,7 +981,7 @@
       updateUI();
       indentCustomCount.focus();
       indentCustomCount.select();
-      setStatus('已选择自定义缩进。');
+      setStatus('已选择自定义增加。');
     });
 
     indentCustomCount.addEventListener('focus', () => {
@@ -963,7 +1003,7 @@
       updateUI();
       outdentCustomCount.focus();
       outdentCustomCount.select();
-      setStatus('已选择自定义减少缩进。');
+      setStatus('已选择自定义减少。');
     });
 
     outdentCustomCount.addEventListener('focus', () => {
@@ -984,30 +1024,60 @@
       doOutdent();
     });
 
-    multiLabelBtn.addEventListener('click', () => {
-      state.multiOptions.addLabel = !state.multiOptions.addLabel;
+    addLabelBtn.addEventListener('click', () => {
+      state.importOpt.addLabel = !state.importOpt.addLabel;
       updateUI();
-      setStatus(state.multiOptions.addLabel ? '多文件导入时将添加文件名标签。' : '多文件导入时不添加文件名标签。');
+      setStatus(state.importOpt.addLabel ? '已开启文件名标签。' : '已关闭文件名标签。');
     });
 
-    multiSeparatorBtn.addEventListener('click', () => {
-      state.multiOptions.addSeparator = !state.multiOptions.addSeparator;
+    wrapNoneBtn.addEventListener('click', () => {
+      state.importOpt.wrapMode = 'none';
       updateUI();
-      setStatus(state.multiOptions.addSeparator ? '多文件导入时将添加分隔线。' : '多文件导入时不添加分隔线。');
+      setStatus('已选择：不添加内容首尾标签。');
     });
 
-    multiGapBlankBtn.addEventListener('click', () => {
-      if (state.multiOptions.addSeparator) return;
-      state.multiOptions.gapMode = 'blank';
+    wrapContentBtn.addEventListener('click', () => {
+      state.importOpt.wrapMode = 'content';
       updateUI();
-      setStatus('多文件无分隔线时，边界默认留空行。');
+      setStatus('已选择：<content> 标签。');
     });
 
-    multiGapTightBtn.addEventListener('click', () => {
-      if (state.multiOptions.addSeparator) return;
-      state.multiOptions.gapMode = 'tight';
+    wrapStartendBtn.addEventListener('click', () => {
+      state.importOpt.wrapMode = 'startend';
       updateUI();
-      setStatus('多文件无分隔线时，边界不留空行。');
+      setStatus('已选择：START >>> 标签。');
+    });
+
+    addSeparatorBtn.addEventListener('click', () => {
+      state.importOpt.addSeparator = !state.importOpt.addSeparator;
+      updateUI();
+      setStatus(state.importOpt.addSeparator ? '已开启分隔线。' : '已关闭分隔线。');
+    });
+
+    gapBlankBtn.addEventListener('click', () => {
+      if (state.importOpt.addSeparator) return;
+      state.importOpt.gapMode = 'blank';
+      updateUI();
+      setStatus('无分隔线时，边界默认留空行。');
+    });
+
+    gapTightBtn.addEventListener('click', () => {
+      if (state.importOpt.addSeparator) return;
+      state.importOpt.gapMode = 'tight';
+      updateUI();
+      setStatus('无分隔线时，边界不留空行。');
+    });
+
+    showGuideBtn.addEventListener('click', () => {
+      state.displayOpt.showGuide = !state.displayOpt.showGuide;
+      updateUI();
+      setStatus(state.displayOpt.showGuide ? '已开启紫色参考线。' : '已关闭紫色参考线。');
+    });
+
+    showLinesBtn.addEventListener('click', () => {
+      state.displayOpt.showLines = !state.displayOpt.showLines;
+      updateUI();
+      setStatus(state.displayOpt.showLines ? '已开启彩色行号。' : '已关闭彩色行号。');
     });
 
     importBtn.addEventListener('click', () => {
@@ -1020,12 +1090,22 @@
       const files = Array.from(fileInput.files || []);
       if (!files.length) return;
       await importFiles(files);
+      textarea.focus();
+      updateDisplayLayer();
     });
 
     exportBtn.addEventListener('click', exportFile);
     copyBtn.addEventListener('click', copyAll);
     selectAllBtn.addEventListener('click', selectAllText);
     clearBtn.addEventListener('click', clearAll);
+
+    textarea.addEventListener('input', updateDisplayLayer);
+    textarea.addEventListener('scroll', updateDisplayLayer);
+    textarea.addEventListener('click', updateGuide);
+    textarea.addEventListener('keyup', updateGuide);
+    textarea.addEventListener('focus', updateGuide);
+    textarea.addEventListener('blur', updateGuide);
+    textarea.addEventListener('select', updateGuide);
 
     document.addEventListener('pointermove', onPointerMove, true);
     document.addEventListener('pointerup', finishPointer, true);
@@ -1039,7 +1119,7 @@
     setStatus('就绪。');
     window[KEY] = { destroy, root };
   } catch (err) {
-    console.error('[indent_panel_v1.3.0]', err);
+    console.error('[indent_panel_v1.4.0]', err);
     showError('缩进面板加载失败：' + (err && err.message ? err.message : String(err)));
   }
 })();
