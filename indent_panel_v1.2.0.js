@@ -1,13 +1,19 @@
 (() => {
-  const KEY = '__indentPanelV111__';
+  const KEY = '__indentPanelV120__';
+  const PREV_KEYS = [
+    '__indentPanelV120__',
+    '__indentPanelV111__',
+    '__indentPanelV110__',
+    '__indentPanelV100__'
+  ];
 
   function showError(msg) {
     try {
-      const old = document.getElementById('__indent-panel-error-v111');
+      const old = document.getElementById('__indent-panel-error-v120');
       if (old) old.remove();
 
       const box = document.createElement('div');
-      box.id = '__indent-panel-error-v111';
+      box.id = '__indent-panel-error-v120';
       box.textContent = msg;
       box.style.cssText = [
         'position:fixed',
@@ -28,30 +34,65 @@
   }
 
   try {
-    if (window[KEY] && typeof window[KEY].destroy === 'function') {
-      window[KEY].destroy();
-    }
-    if (window.__indentPanelV110__ && typeof window.__indentPanelV110__.destroy === 'function') {
-      window.__indentPanelV110__.destroy();
-    }
+    PREV_KEYS.forEach(k => {
+      try {
+        if (window[k] && typeof window[k].destroy === 'function') {
+          window[k].destroy();
+        }
+      } catch (_) {}
+    });
+
+    const THEME = {
+      indent: {
+        strong: '#2563eb',
+        soft: '#dbeafe',
+        border: '#93c5fd',
+        text: '#1d4ed8'
+      },
+      outdent: {
+        strong: '#d97706',
+        soft: '#fef3c7',
+        border: '#fbbf24',
+        text: '#92400e'
+      },
+      muted: {
+        bg: '#f3f4f6',
+        border: 'rgba(0,0,0,.08)',
+        text: '#6b7280'
+      }
+    };
+
+    const ACCEPT = [
+      'text/*',
+      'application/json',
+      'application/xml',
+      '.txt','.text','.md','.markdown','.js','.mjs','.cjs',
+      '.ts','.tsx','.jsx','.json','.json5',
+      '.yaml','.yml','.xml','.html','.htm','.css','.scss','.less',
+      '.py','.sh','.bash','.zsh','.ini','.conf','.cfg','.toml','.properties',
+      '.log','.csv','.tsv','.sql','.java','.kt','.kts','.gradle',
+      '.rb','.php','.go','.rs','.c','.cc','.cpp','.h','.hpp',
+      '.srt','.vtt','.lrc','.bat','.ps1'
+    ].join(',');
 
     const state = {
       collapsed: false,
       drag: null,
       lastTap: 0,
-      action: 'indent',      // indent | outdent
-      indentMode: '2',       // 2 | 4 | custom
-      outdentMode: 'flush'   // flush | custom
+      action: 'indent',
+      indentMode: '2',
+      outdentMode: 'flush',
+      fileMeta: null
     };
 
     const root = document.createElement('div');
-    root.id = '__indent-panel-v111';
+    root.id = '__indent-panel-v120';
     root.style.cssText = [
       'position:fixed',
       'left:16px',
       'top:72px',
-      'width:min(96vw,640px)',
-      'max-width:640px',
+      'width:min(96vw,700px)',
+      'max-width:700px',
       'min-width:300px',
       'background:#fff',
       'color:#111',
@@ -108,10 +149,10 @@
           有选区时仅处理选中行；无选区时处理全文。双击标题栏可折叠/展开，拖动标题栏可移动面板。
         </div>
 
-        <textarea data-role="textarea" spellcheck="false" placeholder="把文本粘贴到这里，再执行缩进或反缩进……" style="
+        <textarea data-role="textarea" spellcheck="false" placeholder="把文本粘贴到这里，或导入本地文本文件……" style="
           width:100%;
-          min-height:320px;
-          max-height:68vh;
+          min-height:360px;
+          max-height:70vh;
           padding:12px;
           border:1px solid rgba(0,0,0,.12);
           border-radius:10px;
@@ -134,9 +175,8 @@
           align-items:center;
           gap:8px;
           padding:10px;
-          border:1px solid rgba(0,0,0,.08);
           border-radius:10px;
-          background:#fafafa;
+          border:1px solid rgba(0,0,0,.08);
         ">
           <span style="font-size:12px;color:#666;">缩进选项</span>
           <button data-role="indent-2"></button>
@@ -159,9 +199,8 @@
           align-items:center;
           gap:8px;
           padding:10px;
-          border:1px solid rgba(0,0,0,.08);
           border-radius:10px;
-          background:#fafafa;
+          border:1px solid rgba(0,0,0,.08);
         ">
           <span style="font-size:12px;color:#666;">反缩进选项</span>
           <button data-role="outdent-flush"></button>
@@ -178,10 +217,19 @@
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <button data-role="import"></button>
+          <button data-role="export"></button>
           <button data-role="copy"></button>
           <button data-role="select-all"></button>
           <button data-role="clear"></button>
+          <input data-role="file-input" type="file" accept="${ACCEPT}" style="display:none">
         </div>
+
+        <div data-role="meta" style="
+          min-height:18px;
+          font-size:12px;
+          color:#666;
+        "></div>
 
         <div data-role="status" style="
           min-height:18px;
@@ -215,13 +263,30 @@
     const outdentCustomCount = root.querySelector('[data-role="outdent-custom-count"]');
     const runOutdent = root.querySelector('[data-role="run-outdent"]');
 
+    const importBtn = root.querySelector('[data-role="import"]');
+    const exportBtn = root.querySelector('[data-role="export"]');
     const copyBtn = root.querySelector('[data-role="copy"]');
     const selectAllBtn = root.querySelector('[data-role="select-all"]');
     const clearBtn = root.querySelector('[data-role="clear"]');
+    const fileInput = root.querySelector('[data-role="file-input"]');
+
+    const metaEl = root.querySelector('[data-role="meta"]');
     const statusEl = root.querySelector('[data-role="status"]');
 
     function setStatus(msg) {
       statusEl.textContent = msg;
+    }
+
+    function updateMeta() {
+      if (state.fileMeta) {
+        metaEl.textContent = `当前来源：已导入文件 ${state.fileMeta.name}（导出保持 .${state.fileMeta.ext}）`;
+      } else {
+        metaEl.textContent = '当前来源：散文本 / 手动粘贴（导出默认 .txt）';
+      }
+    }
+
+    function currentTheme(action) {
+      return action === 'outdent' ? THEME.outdent : THEME.indent;
     }
 
     function setCollapsed(flag) {
@@ -247,38 +312,71 @@
       root.style.top = top + 'px';
     }
 
-    function styleChip(btn, text, active, disabled) {
-      btn.textContent = active ? `✅ ${text}` : text;
-      btn.disabled = !!disabled;
-      btn.style.cssText = [
-        'padding:7px 10px',
-        'border-radius:8px',
-        'font:13px/1.4 sans-serif',
-        'cursor:' + (disabled ? 'not-allowed' : 'pointer'),
-        'border:1px solid ' + (active ? '#111' : 'rgba(0,0,0,.12)'),
-        'background:' + (disabled ? '#f3f3f3' : active ? '#111' : '#fff'),
-        'color:' + (disabled ? '#999' : active ? '#fff' : '#111'),
-        'opacity:' + (disabled ? '.65' : '1')
-      ].join(';');
-    }
-
-    function stylePrimary(btn, text, active, disabled) {
+    function styleModeButton(btn, text, selected, theme) {
       btn.textContent = text;
-      btn.disabled = !!disabled;
+      btn.disabled = false;
       btn.style.cssText = [
         'padding:8px 12px',
         'border-radius:10px',
         'font:13px/1.4 sans-serif',
-        'cursor:' + (disabled ? 'not-allowed' : 'pointer'),
-        'border:1px solid ' + (active ? '#111' : 'rgba(0,0,0,.12)'),
-        'background:' + (disabled ? '#f3f3f3' : active ? '#111' : '#fff'),
-        'color:' + (disabled ? '#999' : active ? '#fff' : '#111'),
-        'opacity:' + (disabled ? '.7' : '1')
+        'cursor:pointer',
+        'border:1px solid ' + (selected ? theme.strong : 'rgba(0,0,0,.12)'),
+        'background:' + (selected ? theme.strong : '#fff'),
+        'color:' + (selected ? '#fff' : '#111')
       ].join(';');
     }
 
-    function styleMinor(btn, text) {
+    function styleSection(box, active, theme) {
+      box.style.background = active ? theme.soft : THEME.muted.bg;
+      box.style.border = '1px solid ' + (active ? theme.border : THEME.muted.border);
+      box.style.opacity = '1';
+    }
+
+    function styleChip(btn, text, selected, enabled, theme) {
+      btn.textContent = selected ? `✅ ${text}` : text;
+      btn.disabled = !enabled;
+      btn.style.cssText = [
+        'padding:7px 10px',
+        'border-radius:8px',
+        'font:13px/1.4 sans-serif',
+        'cursor:' + (enabled ? 'pointer' : 'not-allowed'),
+        'border:1px solid ' + (
+          enabled
+            ? (selected ? theme.strong : theme.border)
+            : 'rgba(0,0,0,.12)'
+        ),
+        'background:' + (
+          enabled
+            ? (selected ? theme.strong : '#fff')
+            : '#f3f4f6'
+        ),
+        'color:' + (
+          enabled
+            ? (selected ? '#fff' : theme.text)
+            : '#999'
+        ),
+        'opacity:' + (enabled ? '1' : '.7')
+      ].join(';');
+    }
+
+    function styleActionButton(btn, text, enabled, theme) {
       btn.textContent = text;
+      btn.disabled = !enabled;
+      btn.style.cssText = [
+        'padding:8px 12px',
+        'border-radius:10px',
+        'font:13px/1.4 sans-serif',
+        'cursor:' + (enabled ? 'pointer' : 'not-allowed'),
+        'border:1px solid ' + (enabled ? theme.strong : 'rgba(0,0,0,.12)'),
+        'background:' + (enabled ? theme.strong : '#f3f4f6'),
+        'color:' + (enabled ? '#fff' : '#999'),
+        'opacity:' + (enabled ? '1' : '.7')
+      ].join(';');
+    }
+
+    function styleToolButton(btn, text) {
+      btn.textContent = text;
+      btn.disabled = false;
       btn.style.cssText = [
         'padding:8px 12px',
         'border-radius:10px',
@@ -290,37 +388,37 @@
       ].join(';');
     }
 
-    function styleInput(input, enabled) {
+    function styleInput(input, enabled, theme) {
       input.disabled = !enabled;
-      input.style.background = enabled ? '#fff' : '#f3f3f3';
+      input.style.background = enabled ? '#fff' : '#f3f4f6';
       input.style.color = enabled ? '#111' : '#999';
       input.style.opacity = enabled ? '1' : '.75';
+      input.style.borderColor = enabled ? theme.border : 'rgba(0,0,0,.12)';
     }
 
     function updateUI() {
-      const indentActive = state.action === 'indent';
-      const outdentActive = state.action === 'outdent';
+      styleModeButton(actionIndent, '缩进模式', state.action === 'indent', THEME.indent);
+      styleModeButton(actionOutdent, '反缩进模式', state.action === 'outdent', THEME.outdent);
 
-      stylePrimary(actionIndent, '缩进模式', indentActive, false);
-      stylePrimary(actionOutdent, '反缩进模式', outdentActive, false);
+      styleSection(indentBox, state.action === 'indent', THEME.indent);
+      styleSection(outdentBox, state.action === 'outdent', THEME.outdent);
 
-      indentBox.style.opacity = indentActive ? '1' : '.6';
-      outdentBox.style.opacity = outdentActive ? '1' : '.6';
+      styleChip(indent2, '缩进2格', state.indentMode === '2', state.action === 'indent', THEME.indent);
+      styleChip(indent4, '缩进4格', state.indentMode === '4', state.action === 'indent', THEME.indent);
+      styleChip(indentCustom, '自定义缩进', state.indentMode === 'custom', state.action === 'indent', THEME.indent);
+      styleInput(indentCustomCount, state.action === 'indent' && state.indentMode === 'custom', THEME.indent);
+      styleActionButton(runIndent, '执行缩进', state.action === 'indent', THEME.indent);
 
-      styleChip(indent2, '缩进2格', state.indentMode === '2', !indentActive);
-      styleChip(indent4, '缩进4格', state.indentMode === '4', !indentActive);
-      styleChip(indentCustom, '自定义缩进', state.indentMode === 'custom', !indentActive);
-      styleInput(indentCustomCount, indentActive && state.indentMode === 'custom');
-      stylePrimary(runIndent, '执行缩进', indentActive, !indentActive);
+      styleChip(outdentFlush, '顶格', state.outdentMode === 'flush', state.action === 'outdent', THEME.outdent);
+      styleChip(outdentCustom, '自定义减少', state.outdentMode === 'custom', state.action === 'outdent', THEME.outdent);
+      styleInput(outdentCustomCount, state.action === 'outdent' && state.outdentMode === 'custom', THEME.outdent);
+      styleActionButton(runOutdent, '执行反缩进', state.action === 'outdent', THEME.outdent);
 
-      styleChip(outdentFlush, '顶格', state.outdentMode === 'flush', !outdentActive);
-      styleChip(outdentCustom, '自定义减少', state.outdentMode === 'custom', !outdentActive);
-      styleInput(outdentCustomCount, outdentActive && state.outdentMode === 'custom');
-      stylePrimary(runOutdent, '执行反缩进', outdentActive, !outdentActive);
-
-      styleMinor(copyBtn, '全部复制');
-      styleMinor(selectAllBtn, '全部高亮');
-      styleMinor(clearBtn, '全部清空');
+      styleToolButton(importBtn, '导入文件');
+      styleToolButton(exportBtn, '导出文件');
+      styleToolButton(copyBtn, '全部复制');
+      styleToolButton(selectAllBtn, '全部高亮');
+      styleToolButton(clearBtn, '全部清空');
     }
 
     function flashButton(btn) {
@@ -462,8 +560,106 @@
     function clearAll() {
       flashButton(clearBtn);
       textarea.value = '';
+      state.fileMeta = null;
+      updateMeta();
       textarea.focus();
       setStatus('已清空全部内容。');
+    }
+
+    function parseFileMeta(file) {
+      const name = file && file.name ? file.name : 'imported.txt';
+      const idx = name.lastIndexOf('.');
+      const base = idx > 0 ? name.slice(0, idx) : name;
+      const ext = idx > 0 ? name.slice(idx + 1).toLowerCase() : 'txt';
+      return { name, base, ext };
+    }
+
+    function sanitizeBaseName(name) {
+      return (name || 'text')
+        .replace(/[\\/:*?"<>|]+/g, '_')
+        .replace(/\s+/g, ' ')
+        .trim() || 'text';
+    }
+
+    function makeTimestamp() {
+      const d = new Date();
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+    }
+
+    function guessMime(ext) {
+      const map = {
+        txt: 'text/plain;charset=utf-8',
+        md: 'text/markdown;charset=utf-8',
+        markdown: 'text/markdown;charset=utf-8',
+        js: 'application/javascript;charset=utf-8',
+        mjs: 'application/javascript;charset=utf-8',
+        cjs: 'application/javascript;charset=utf-8',
+        ts: 'application/typescript;charset=utf-8',
+        json: 'application/json;charset=utf-8',
+        yaml: 'text/yaml;charset=utf-8',
+        yml: 'text/yaml;charset=utf-8',
+        xml: 'application/xml;charset=utf-8',
+        html: 'text/html;charset=utf-8',
+        htm: 'text/html;charset=utf-8',
+        css: 'text/css;charset=utf-8',
+        py: 'text/plain;charset=utf-8',
+        srt: 'text/plain;charset=utf-8'
+      };
+      return map[ext] || 'text/plain;charset=utf-8';
+    }
+
+    function importFile(file) {
+      if (!file) return;
+
+      const meta = parseFileMeta(file);
+      if (meta.ext === 'pdf') {
+        setStatus('PDF 不属于纯文本导入范围，暂不支持。');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        textarea.value = typeof reader.result === 'string' ? reader.result : '';
+        state.fileMeta = meta;
+        updateMeta();
+        setStatus(`已导入文件：${meta.name}`);
+      };
+      reader.onerror = () => {
+        setStatus('文件导入失败，请确认它是可读取的文本文件。');
+      };
+
+      try {
+        reader.readAsText(file, 'utf-8');
+      } catch (_) {
+        setStatus('文件导入失败，可能不是文本文件或编码不受支持。');
+      }
+    }
+
+    function exportFile() {
+      flashButton(exportBtn);
+
+      const text = textarea.value;
+      if (!text) {
+        setStatus('输入框为空，没有可导出的内容。');
+        return;
+      }
+
+      const ext = state.fileMeta ? state.fileMeta.ext : 'txt';
+      const base = state.fileMeta ? state.fileMeta.base : 'text';
+      const fileName = `${makeTimestamp()}_${sanitizeBaseName(base)}.${ext}`;
+      const blob = new Blob([text], { type: guessMime(ext) });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus(`已导出文件：${fileName}`);
     }
 
     function onPointerMove(e) {
@@ -476,7 +672,6 @@
       if (!d.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
         d.moved = true;
       }
-
       if (!d.moved) return;
 
       const maxLeft = Math.max(0, window.innerWidth - root.offsetWidth - 4);
@@ -504,7 +699,6 @@
 
       const moved = d.moved;
       state.drag = null;
-
       if (moved) return;
 
       const now = Date.now();
@@ -627,6 +821,18 @@
       doOutdent();
     });
 
+    importBtn.addEventListener('click', () => {
+      flashButton(importBtn);
+      fileInput.value = '';
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (file) importFile(file);
+    });
+
+    exportBtn.addEventListener('click', exportFile);
     copyBtn.addEventListener('click', copyAll);
     selectAllBtn.addEventListener('click', selectAllText);
     clearBtn.addEventListener('click', clearAll);
@@ -637,12 +843,13 @@
     window.addEventListener('resize', onResize, true);
 
     updateUI();
+    updateMeta();
     setCollapsed(false);
     clampPosition();
     setStatus('就绪。');
     window[KEY] = { destroy, root };
   } catch (err) {
-    console.error('[indent_panel_v1.1.1]', err);
+    console.error('[indent_panel_v1.2.0]', err);
     showError('缩进面板加载失败：' + (err && err.message ? err.message : String(err)));
   }
 })();
