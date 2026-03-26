@@ -1,6 +1,7 @@
 (() => {
-  const KEY = '__indentPanelV150__';
+  const KEY = '__indentPanelV151__';
   const PREV_KEYS = [
+    '__indentPanelV151__',
     '__indentPanelV150__',
     '__indentPanelV142__',
     '__indentPanelV141__',
@@ -14,10 +15,10 @@
 
   function showError(msg) {
     try {
-      const old = document.getElementById('__indent-panel-error-v150');
+      const old = document.getElementById('__indent-panel-error-v151');
       if (old) old.remove();
       const box = document.createElement('div');
-      box.id = '__indent-panel-error-v150';
+      box.id = '__indent-panel-error-v151';
       box.textContent = msg;
       box.style.cssText = [
         'position:fixed',
@@ -94,18 +95,18 @@
       },
       panelOpt: {
         passThrough: false,
-        opacity: 100
+        opacity: 35
       }
     };
 
-    // 继承你手动确认过的高度参数
+    // 继承你已经确认过的参数
     const PANEL_W = 860;
     const PANEL_H = 1150;
     const EDITOR_H = 590;
     const GUTTER_W = 58;
 
     const root = document.createElement('div');
-    root.id = '__indent-panel-v150';
+    root.id = '__indent-panel-v151';
     root.style.cssText = [
       'position:fixed',
       'left:16px',
@@ -157,7 +158,7 @@
           flex:none;
           pointer-events:auto;
         ">
-          <input data-role="opacity-range" type="range" min="20" max="100" step="5" value="100" style="
+          <input data-role="opacity-range" type="range" min="10" max="100" step="5" value="35" style="
             width:92px;
             accent-color:#7e22ce;
             cursor:pointer;
@@ -479,7 +480,6 @@
     function buildWrappedPiece(meta, text) {
       const content = stripEdgeNewlines(text);
       const lines = [];
-
       if (state.importOpt.addLabel) lines.push(`【${meta.name}】`);
 
       if (state.importOpt.wrapMode === 'content') {
@@ -526,7 +526,9 @@
     }
 
     function applyBodyOpacity() {
-      body.style.opacity = String(state.panelOpt.opacity / 100);
+      body.style.opacity = state.panelOpt.passThrough
+        ? String(state.panelOpt.opacity / 100)
+        : '1';
     }
 
     function applyPassThrough() {
@@ -537,6 +539,7 @@
         title.style.pointerEvents = 'auto';
         titleRight.style.pointerEvents = 'auto';
         body.style.pointerEvents = 'none';
+        passBtn.textContent = '退出穿透';
         passBtn.style.background = '#d97706';
         passBtn.style.borderColor = '#b45309';
         passBtn.style.color = '#fff';
@@ -545,6 +548,7 @@
         title.style.pointerEvents = 'auto';
         titleRight.style.pointerEvents = 'auto';
         body.style.pointerEvents = 'auto';
+        passBtn.textContent = '穿透';
         passBtn.style.background = '#fff';
         passBtn.style.borderColor = 'rgba(0,0,0,.12)';
         passBtn.style.color = '#111';
@@ -579,7 +583,9 @@
 
       const minLeft = -w + keepW;
       const maxLeft = window.innerWidth - keepW;
-      const minTop = -h + keepH;
+
+      // 修复点：向上拖动恢复安全限制，标题栏不能滑出屏幕顶部
+      const minTop = 0;
       const maxTop = window.innerHeight - keepH;
 
       if (left < minLeft) left = minLeft;
@@ -1036,7 +1042,9 @@
 
       const minLeft = -w + keepW;
       const maxLeft = window.innerWidth - keepW;
-      const minTop = -h + keepH;
+
+      // 修复：上边界恢复安全限制，标题栏不能离开屏幕顶部
+      const minTop = 0;
       const maxTop = window.innerHeight - keepH;
 
       if (nl < minLeft) nl = minLeft;
@@ -1120,16 +1128,17 @@
       e.stopPropagation();
       state.panelOpt.passThrough = !state.panelOpt.passThrough;
       applyPassThrough();
-      setStatus(state.panelOpt.passThrough
-        ? '已开启透明穿透：标题栏以下区域可直接操作网页。'
-        : '已关闭透明穿透，恢复面板正常操作。');
+      setStatus(
+        state.panelOpt.passThrough
+          ? '已开启透明穿透：标题栏以下区域可直接操作网页，主体按滑块透明显示。'
+          : '已关闭透明穿透，恢复面板正常操作。'
+      );
     });
 
     opacityRange.addEventListener('pointerdown', e => e.stopPropagation());
     opacityRange.addEventListener('input', () => {
-      state.panelOpt.opacity = parseInt(opacityRange.value, 10) || 100;
-      applyBodyOpacity();
-      if (!state.panelOpt.passThrough) root.style.pointerEvents = 'auto';
+      state.panelOpt.opacity = parseInt(opacityRange.value, 10) || 35;
+      applyPassThrough();
     });
 
     actionIndent.addEventListener('click', () => {
@@ -1302,7 +1311,7 @@
     setStatus('就绪。');
     window[KEY] = { destroy, root };
   } catch (err) {
-    console.error('[indent_panel_v1.5.0]', err);
+    console.error('[indent_panel_v1.5.1]', err);
     showError('缩进面板加载失败：' + (err && err.message ? err.message : String(err)));
   }
 })();
