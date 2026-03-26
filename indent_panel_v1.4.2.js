@@ -94,7 +94,7 @@
 
     const PANEL_W = 860;
     const PANEL_H = 1150;
-    const EDITOR_H = 580;
+    const EDITOR_H = 590;
     const GUTTER_W = 58;
 
     const root = document.createElement('div');
