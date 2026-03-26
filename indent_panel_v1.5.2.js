@@ -1,6 +1,7 @@
 (() => {
-  const KEY = '__indentPanelV151__';
+  const KEY = '__indentPanelV152__';
   const PREV_KEYS = [
+    '__indentPanelV152__',
     '__indentPanelV151__',
     '__indentPanelV150__',
     '__indentPanelV142__',
@@ -15,10 +16,10 @@
 
   function showError(msg) {
     try {
-      const old = document.getElementById('__indent-panel-error-v151');
+      const old = document.getElementById('__indent-panel-error-v152');
       if (old) old.remove();
       const box = document.createElement('div');
-      box.id = '__indent-panel-error-v151';
+      box.id = '__indent-panel-error-v152';
       box.textContent = msg;
       box.style.cssText = [
         'position:fixed',
@@ -75,6 +76,10 @@
       '.rs','.c','.cc','.cpp','.h','.hpp','.srt','.vtt','.lrc','.bat','.ps1'
     ].join(',');
 
+    const ROOT_BG = '#fff';
+    const ROOT_BORDER = '1px solid rgba(0,0,0,.12)';
+    const ROOT_SHADOW = '0 8px 30px rgba(0,0,0,.18)';
+
     const state = {
       collapsed: false,
       drag: null,
@@ -95,18 +100,18 @@
       },
       panelOpt: {
         passThrough: false,
-        opacity: 35
+        opacity: 35   // 这里的数值表示“主体可见度”，0=完全隐藏，100=完全可见
       }
     };
 
-    // 继承你已经确认过的参数
+    // 继承你确认过的参数
     const PANEL_W = 860;
     const PANEL_H = 1150;
     const EDITOR_H = 590;
     const GUTTER_W = 58;
 
     const root = document.createElement('div');
-    root.id = '__indent-panel-v151';
+    root.id = '__indent-panel-v152';
     root.style.cssText = [
       'position:fixed',
       'left:16px',
@@ -158,7 +163,7 @@
           flex:none;
           pointer-events:auto;
         ">
-          <input data-role="opacity-range" type="range" min="10" max="100" step="5" value="35" style="
+          <input data-role="opacity-range" type="range" min="0" max="100" step="5" value="35" style="
             width:92px;
             accent-color:#7e22ce;
             cursor:pointer;
@@ -525,13 +530,48 @@
       }
     }
 
+    function applyFrameStyle() {
+      if (state.panelOpt.passThrough) {
+        root.style.background = 'transparent';
+        root.style.border = '0';
+        root.style.boxShadow = 'none';
+
+        title.style.background = '#f6f7f9';
+        title.style.border = '1px solid rgba(0,0,0,.12)';
+        title.style.borderRadius = '12px';
+        title.style.boxShadow = '0 4px 14px rgba(0,0,0,.12)';
+      } else {
+        root.style.background = ROOT_BG;
+        root.style.border = ROOT_BORDER;
+        root.style.boxShadow = ROOT_SHADOW;
+
+        title.style.background = '#f6f7f9';
+        title.style.border = '0';
+        title.style.borderBottom = '1px solid rgba(0,0,0,.08)';
+        title.style.borderRadius = '0';
+        title.style.boxShadow = 'none';
+      }
+    }
+
+    function syncBodyVisibility() {
+      const hideByTransparency = state.panelOpt.passThrough && state.panelOpt.opacity === 0;
+      const showBody = !state.collapsed && !hideByTransparency;
+
+      body.style.display = showBody ? 'flex' : 'none';
+      root.style.height = showBody ? PANEL_H + 'px' : Math.ceil(title.getBoundingClientRect().height + 2) + 'px';
+      titleText.textContent = state.collapsed ? '缩进处理面板（已折叠）' : '缩进处理面板';
+    }
+
     function applyBodyOpacity() {
-      body.style.opacity = state.panelOpt.passThrough
-        ? String(state.panelOpt.opacity / 100)
-        : '1';
+      if (state.panelOpt.passThrough) {
+        body.style.opacity = String((state.panelOpt.opacity / 100).toFixed(2));
+      } else {
+        body.style.opacity = '1';
+      }
     }
 
     function applyPassThrough() {
+      applyFrameStyle();
       applyBodyOpacity();
 
       if (state.panelOpt.passThrough) {
@@ -539,6 +579,7 @@
         title.style.pointerEvents = 'auto';
         titleRight.style.pointerEvents = 'auto';
         body.style.pointerEvents = 'none';
+
         passBtn.textContent = '退出穿透';
         passBtn.style.background = '#d97706';
         passBtn.style.borderColor = '#b45309';
@@ -548,25 +589,20 @@
         title.style.pointerEvents = 'auto';
         titleRight.style.pointerEvents = 'auto';
         body.style.pointerEvents = 'auto';
+
         passBtn.textContent = '穿透';
         passBtn.style.background = '#fff';
         passBtn.style.borderColor = 'rgba(0,0,0,.12)';
         passBtn.style.color = '#111';
       }
+
+      syncBodyVisibility();
+      clampPosition();
     }
 
     function setCollapsed(flag) {
       state.collapsed = !!flag;
-      if (state.collapsed) {
-        body.style.display = 'none';
-        root.style.height = Math.ceil(title.getBoundingClientRect().height + 2) + 'px';
-        titleText.textContent = '缩进处理面板（已折叠）';
-      } else {
-        body.style.display = 'flex';
-        root.style.height = PANEL_H + 'px';
-        titleText.textContent = '缩进处理面板';
-        applyBodyOpacity();
-      }
+      syncBodyVisibility();
       clampPosition();
     }
 
@@ -584,7 +620,7 @@
       const minLeft = -w + keepW;
       const maxLeft = window.innerWidth - keepW;
 
-      // 修复点：向上拖动恢复安全限制，标题栏不能滑出屏幕顶部
+      // 继承 v1.5.1 已修好的上边界限制
       const minTop = 0;
       const maxTop = window.innerHeight - keepH;
 
@@ -734,7 +770,7 @@
 
       styleSection(indentBox, state.action === 'indent', THEME.indent);
       styleSection(outdentBox, state.action === 'outdent', THEME.outdent);
-      styleSection(importBox, true, { soft:'#f8fafc', border:'#dbe3ea' });
+      styleSection(importBox, true, THEME.slate);
       styleSection(displayBox, true, THEME.purple);
 
       styleChip(indent2, '缩进2格', state.indentMode === '2', state.action === 'indent', THEME.indent);
@@ -1042,8 +1078,6 @@
 
       const minLeft = -w + keepW;
       const maxLeft = window.innerWidth - keepW;
-
-      // 修复：上边界恢复安全限制，标题栏不能离开屏幕顶部
       const minTop = 0;
       const maxTop = window.innerHeight - keepH;
 
@@ -1078,11 +1112,7 @@
     }
 
     function onResize() {
-      if (state.collapsed) {
-        root.style.height = Math.ceil(title.getBoundingClientRect().height + 2) + 'px';
-      } else {
-        root.style.height = PANEL_H + 'px';
-      }
+      syncBodyVisibility();
       clampPosition();
       updateDisplayLayer();
     }
@@ -1098,8 +1128,6 @@
 
     title.addEventListener('pointerdown', e => {
       if (e.target === closeBtn || closeBtn.contains(e.target)) return;
-      if (e.target === passBtn || passBtn.contains(e.target)) return;
-      if (e.target === opacityRange || opacityRange.contains(e.target)) return;
       if (titleRight.contains(e.target)) return;
 
       state.drag = {
@@ -1130,15 +1158,26 @@
       applyPassThrough();
       setStatus(
         state.panelOpt.passThrough
-          ? '已开启透明穿透：标题栏以下区域可直接操作网页，主体按滑块透明显示。'
+          ? (state.panelOpt.opacity === 0
+              ? '已开启透明穿透：主体已完全隐藏，只保留标题栏。'
+              : '已开启透明穿透：标题栏以下区域可直接操作网页。')
           : '已关闭透明穿透，恢复面板正常操作。'
       );
     });
 
     opacityRange.addEventListener('pointerdown', e => e.stopPropagation());
     opacityRange.addEventListener('input', () => {
-      state.panelOpt.opacity = parseInt(opacityRange.value, 10) || 35;
+      state.panelOpt.opacity = parseInt(opacityRange.value, 10) || 0;
       applyPassThrough();
+      if (state.panelOpt.passThrough) {
+        setStatus(
+          state.panelOpt.opacity === 0
+            ? '主体已完全隐藏，只保留标题栏。'
+            : `已调整主体可见度：${state.panelOpt.opacity}%`
+        );
+      } else {
+        setStatus('已调整滑块；开启穿透后生效。');
+      }
     });
 
     actionIndent.addEventListener('click', () => {
@@ -1311,7 +1350,7 @@
     setStatus('就绪。');
     window[KEY] = { destroy, root };
   } catch (err) {
-    console.error('[indent_panel_v1.5.1]', err);
+    console.error('[indent_panel_v1.5.2]', err);
     showError('缩进面板加载失败：' + (err && err.message ? err.message : String(err)));
   }
 })();
