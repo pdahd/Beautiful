@@ -109,7 +109,7 @@
     // 继承你确认过的参数
     const PANEL_W = 860;
     const PANEL_H = 1150;
-    const EDITOR_H = 630;
+    const EDITOR_H = 650;
     const GUTTER_W = 58;
 
     const root = document.createElement('div');
