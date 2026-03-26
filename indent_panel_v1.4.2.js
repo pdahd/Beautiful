@@ -215,7 +215,7 @@
           display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:none;
           padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);background:#fafafa;
         ">
-          <span style="font-size:12px;color:#666;">导入包装选项</span>
+          <span style="font-size:12px;color:#666;">导入选项</span>
           <button data-role="add-label"></button>
           <button data-role="wrap-none"></button>
           <button data-role="wrap-content"></button>
