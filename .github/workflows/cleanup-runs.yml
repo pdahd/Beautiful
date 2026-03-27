@@ -1,18 +1,18 @@
-name: Delete old workflow runs
+name: 清理历史运行记录
 on:
   workflow_dispatch:
     inputs:
       days:
-        description: "Days to retain runs (0 = delete all)"
+        description: "保留天数 (0 = 全部删除)"
         default: "0"
       minimum_runs:
-        description: "Minimum runs to keep per workflow"
+        description: "每个 workflow 最少保留几条"
         default: "0"
       delete_workflow_pattern:
-        description: "Workflow name filter (empty = all workflows)"
+        description: "指定 workflow 名称 (留空 = 全部)"
         default: ""
       delete_workflow_by_state_pattern:
-        description: "Filter by workflow state"
+        description: "按状态过滤"
         default: "ALL"
         type: choice
         options:
@@ -22,7 +22,7 @@ on:
           - disabled_inactivity
           - disabled_manually
       delete_run_by_conclusion_pattern:
-        description: "Filter by run conclusion"
+        description: "按结论过滤"
         default: "ALL"
         type: choice
         options:
@@ -32,7 +32,7 @@ on:
           - cancelled
           - skipped
       dry_run:
-        description: "Simulate only? (true = preview, false = actually delete)"
+        description: "仅模拟？(true = 预览, false = 真删)"
         default: "true"
         type: choice
         options:
@@ -46,7 +46,7 @@ jobs:
       actions: write
       contents: read
     steps:
-      - name: Delete workflow runs
+      - name: 批量删除 workflow 运行记录
         uses: Mattraks/delete-workflow-runs@v2
         with:
           token: ${{ github.token }}
