@@ -1,0 +1,33 @@
+name: 部署 Pages 站点
+on:
+  workflow_dispatch:  # 手动触发
+  push:
+    paths:
+      - 'index.html'  # 只有 index.html 改动才自动触发
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Pages
+        uses: actions/configure-pages@v5
+
+      - name: 上传站点文件
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'  # 上传根目录
+
+      - name: 部署到 Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
