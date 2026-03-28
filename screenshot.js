@@ -1,11 +1,10 @@
-// screenshot.js v2.0 — 网页截图 + 本地图片裁剪工具
+// screenshot.js v2.1 — 内直角手柄+预览修复+边界反馈
 (function(){
 
 const TOOL_ID="sc_tool_987";
 const old=document.getElementById(TOOL_ID);
 if(old){old.remove();return;}
 
-// ── 工具函数 ──────────────────────────────────
 function showErr(msg){
   const d=document.createElement("div");
   d.style.cssText=
@@ -71,30 +70,23 @@ function showHome(){
     const lb=document.createElement("div");
     lb.style.cssText="font-weight:bold;";
     lb.textContent=label;
-    c.appendChild(ic);
-    c.appendChild(lb);
+    c.appendChild(ic);c.appendChild(lb);
     c.onclick=fn;
     return c;
   }
 
   const webCard=mkCard("🌐","网页截图",()=>{
-    wrap.remove();
-    loadH2C(initWebshot);
+    wrap.remove();loadH2C(initWebshot);
   });
   const cropCard=mkCard("🖼","本地裁剪",()=>{
-    wrap.remove();
-    initCropper();
+    wrap.remove();initCropper();
   });
-
-  row.appendChild(webCard);
-  row.appendChild(cropCard);
+  row.appendChild(webCard);row.appendChild(cropCard);
 
   const closeB=mkBtn("关闭","#888",()=>wrap.remove());
   closeB.style.width="100%";
 
-  panel.appendChild(ttl);
-  panel.appendChild(row);
-  panel.appendChild(closeB);
+  panel.appendChild(ttl);panel.appendChild(row);panel.appendChild(closeB);
   wrap.appendChild(panel);
   document.body.appendChild(wrap);
 }
@@ -109,11 +101,140 @@ function loadH2C(cb){
   document.head.appendChild(s);
 }
 
+// ── 共用：构建内直角L形手柄 ──────────────────
+// 返回8个手柄元素，挂到容器上
+// sz=手柄臂长, th=手柄粗细
+function buildHandles(container,color){
+  color=color||"#fff";
+  const sz=18,th=3;
+  const HANDLES=["nw","ne","sw","se","n","s","e","w"];
+  const els={};
+
+  HANDLES.forEach(dir=>{
+    const wrap=document.createElement("div");
+    wrap.style.cssText=
+      "position:absolute;width:44px;height:44px;"+
+      "display:flex;align-items:center;justify-content:center;"+
+      "z-index:10;touch-action:none;cursor:"+getCursor(dir)+";";
+
+    // L形由两个div拼成
+    const a=document.createElement("div");
+    const b=document.createElement("div");
+    a.style.cssText="position:absolute;background:"+color+";"+
+      "box-shadow:0 0 2px rgba(0,0,0,.5);border-radius:1px;";
+    b.style.cssText="position:absolute;background:"+color+";"+
+      "box-shadow:0 0 2px rgba(0,0,0,.5);border-radius:1px;";
+
+    // 根据方向设置L形朝向
+    if(dir==="nw"){
+      // 左上：向右横臂 + 向下竖臂
+      a.style.cssText+=`width:${sz}px;height:${th}px;left:${22-sz/2}px;top:${22-sz/2}px;`;
+      b.style.cssText+=`width:${th}px;height:${sz}px;left:${22-sz/2}px;top:${22-sz/2}px;`;
+    } else if(dir==="ne"){
+      // 右上：向左横臂 + 向下竖臂
+      a.style.cssText+=`width:${sz}px;height:${th}px;right:${22-sz/2}px;top:${22-sz/2}px;`;
+      b.style.cssText+=`width:${th}px;height:${sz}px;right:${22-sz/2}px;top:${22-sz/2}px;`;
+    } else if(dir==="sw"){
+      // 左下：向右横臂 + 向上竖臂
+      a.style.cssText+=`width:${sz}px;height:${th}px;left:${22-sz/2}px;bottom:${22-sz/2}px;`;
+      b.style.cssText+=`width:${th}px;height:${sz}px;left:${22-sz/2}px;bottom:${22-sz/2}px;`;
+    } else if(dir==="se"){
+      // 右下：向左横臂 + 向上竖臂
+      a.style.cssText+=`width:${sz}px;height:${th}px;right:${22-sz/2}px;bottom:${22-sz/2}px;`;
+      b.style.cssText+=`width:${th}px;height:${sz}px;right:${22-sz/2}px;bottom:${22-sz/2}px;`;
+    } else if(dir==="n"){
+      // 上边中点：水平短线
+      a.style.cssText+=`width:${sz}px;height:${th}px;left:${22-sz/2}px;top:${22-th/2}px;`;
+      b.style.cssText+="display:none;";
+    } else if(dir==="s"){
+      a.style.cssText+=`width:${sz}px;height:${th}px;left:${22-sz/2}px;bottom:${22-th/2}px;`;
+      b.style.cssText+="display:none;";
+    } else if(dir==="w"){
+      a.style.cssText+=`width:${th}px;height:${sz}px;left:${22-th/2}px;top:${22-sz/2}px;`;
+      b.style.cssText+="display:none;";
+    } else if(dir==="e"){
+      a.style.cssText+=`width:${th}px;height:${sz}px;right:${22-th/2}px;top:${22-sz/2}px;`;
+      b.style.cssText+="display:none;";
+    }
+
+    wrap.appendChild(a);wrap.appendChild(b);
+    container.appendChild(wrap);
+    els[dir]=wrap;
+  });
+  return els;
+}
+
+function getCursor(dir){
+  return {
+    n:"ns-resize",s:"ns-resize",
+    e:"ew-resize",w:"ew-resize",
+    nw:"nwse-resize",se:"nwse-resize",
+    ne:"nesw-resize",sw:"nesw-resize"
+  }[dir]||"move";
+}
+
+// ── 共用：构建4条独立边框线 ───────────────────
+function buildBorderLines(container){
+  const lines={};
+  ["top","bottom","left","right"].forEach(side=>{
+    const l=document.createElement("div");
+    l.style.cssText="position:absolute;background:#fff;pointer-events:none;z-index:5;";
+    container.appendChild(l);
+    lines[side]=l;
+  });
+  return lines;
+}
+
+function updateBorderLines(lines,rx,ry,rw,rh,dispW,dispH){
+  const SNAP=6; // 吸附距离px
+  const colors={top:"#fff",bottom:"#fff",left:"#fff",right:"#fff"};
+
+  // 检查各边
+  const edges={
+    top:ry,
+    bottom:ry+rh,
+    left:rx,
+    right:rx+rw
+  };
+
+  // 吸附并着色
+  function edgeColor(val,limit){
+    if(Math.abs(val-limit)<=SNAP) return "#4caf50"; // 绿色：贴边
+    if(val<0||val>limit) return "#f44336";           // 红色：溢出
+    return "#fff";
+  }
+
+  colors.top=edgeColor(edges.top,0);
+  colors.bottom=edgeColor(edges.bottom,dispH);
+  colors.left=edgeColor(edges.left,0);
+  colors.right=edgeColor(edges.right,dispW);
+
+  // 上边：top=ry, 左=rx, 宽=rw, 高=2px
+  lines.top.style.cssText=
+    "position:absolute;pointer-events:none;z-index:5;"+
+    "left:"+rx+"px;top:"+ry+"px;width:"+rw+"px;height:2px;"+
+    "background:"+colors.top+";";
+  // 下边
+  lines.bottom.style.cssText=
+    "position:absolute;pointer-events:none;z-index:5;"+
+    "left:"+rx+"px;top:"+(ry+rh-2)+"px;width:"+rw+"px;height:2px;"+
+    "background:"+colors.bottom+";";
+  // 左边
+  lines.left.style.cssText=
+    "position:absolute;pointer-events:none;z-index:5;"+
+    "left:"+rx+"px;top:"+ry+"px;width:2px;height:"+rh+"px;"+
+    "background:"+colors.left+";";
+  // 右边
+  lines.right.style.cssText=
+    "position:absolute;pointer-events:none;z-index:5;"+
+    "left:"+(rx+rw-2)+"px;top:"+ry+"px;width:2px;height:"+rh+"px;"+
+    "background:"+colors.right+";";
+}
+
 // ════════════════════════════════════════════════
 // 功能A：网页截图
 // ════════════════════════════════════════════════
 function initWebshot(){
-
   const dpr=Math.min(window.devicePixelRatio||1,2);
   const prevOverflow=document.body.style.overflow;
   document.body.style.overflow="hidden";
@@ -131,10 +252,13 @@ function initWebshot(){
   };
   const mTop=mkMask(),mBot=mkMask(),mLft=mkMask(),mRgt=mkMask();
 
+  // 选区容器（用于挂手柄和边框线）
   const sel=document.createElement("div");
   sel.style.cssText=
-    "position:absolute;border:2px solid #fff;cursor:move;"+
-    "box-shadow:0 0 0 1px rgba(0,0,0,.5);box-sizing:border-box;";
+    "position:absolute;cursor:move;box-sizing:border-box;";
+
+  const borderLines=buildBorderLines(sel);
+  const handleEls=buildHandles(sel,"#fff");
 
   const sizeTip=document.createElement("div");
   sizeTip.style.cssText=
@@ -149,33 +273,27 @@ function initWebshot(){
     "background:rgba(0,0,0,.6);z-index:2147483649;"+
     "display:none;flex-direction:column;"+
     "align-items:center;justify-content:center;";
-
   const progressBox=document.createElement("div");
   progressBox.style.cssText=
     "background:#fff;border-radius:12px;padding:28px 40px;"+
     "text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3);min-width:220px;";
-
   const progressIcon=document.createElement("div");
   progressIcon.style.cssText="font-size:36px;margin-bottom:12px;";
   progressIcon.textContent="📷";
-
   const progressText=document.createElement("div");
   progressText.style.cssText=
     "font-size:15px;color:#333;margin-bottom:16px;font-weight:bold;";
   progressText.textContent="正在截图...";
-
   const progressBarWrap=document.createElement("div");
   progressBarWrap.style.cssText=
     "width:100%;height:6px;background:#eee;border-radius:3px;overflow:hidden;";
-
   const progressBar=document.createElement("div");
   progressBar.style.cssText=
-    "height:100%;width:0%;background:#0078ff;border-radius:3px;transition:width .3s;";
-
+    "height:100%;width:0%;background:#0078ff;"+
+    "border-radius:3px;transition:width .3s;";
   const progressSub=document.createElement("div");
   progressSub.style.cssText="font-size:12px;color:#888;margin-top:10px;";
   progressSub.textContent="页面越复杂耗时越长，请耐心等待";
-
   progressBarWrap.appendChild(progressBar);
   progressBox.appendChild(progressIcon);
   progressBox.appendChild(progressText);
@@ -186,8 +304,7 @@ function initWebshot(){
   let progressTimer=null,currentProgress=0;
   function startProgress(){
     progressWrap.style.display="flex";
-    currentProgress=0;
-    progressBar.style.width="0%";
+    currentProgress=0;progressBar.style.width="0%";
     progressTimer=setInterval(()=>{
       if(currentProgress<90){
         currentProgress+=Math.random()*8;
@@ -213,10 +330,8 @@ function initWebshot(){
     "background:rgba(30,30,30,.92);color:#fff;"+
     "display:flex;align-items:center;justify-content:space-between;"+
     "padding:10px 16px;box-sizing:border-box;z-index:2147483648;";
-
   const barInfo=document.createElement("span");
   barInfo.style.cssText="color:#ccc;font-size:12px;";
-
   const barBtns=document.createElement("div");
   barBtns.style.cssText="display:flex;gap:10px;";
 
@@ -226,38 +341,12 @@ function initWebshot(){
     b.style.cssText=
       "padding:8px 16px;background:"+bg+";color:#fff;border:none;"+
       "border-radius:6px;font-size:14px;cursor:pointer;";
-    b.onclick=fn;
-    return b;
+    b.onclick=fn;return b;
   }
-
   const backBtn=mkBarBtn("← 返回","#555",()=>{cleanup();showHome();});
   const shotBtn=mkBarBtn("📷 截图保存","#0078ff",doCapture);
-  barBtns.appendChild(backBtn);
-  barBtns.appendChild(shotBtn);
-  bar.appendChild(barInfo);
-  bar.appendChild(barBtns);
-
-  // 8手柄
-  const HANDLES=["n","s","e","w","nw","ne","sw","se"];
-  const handleEls={};
-  const CURSOR_MAP={
-    n:"ns-resize",s:"ns-resize",e:"ew-resize",w:"ew-resize",
-    nw:"nwse-resize",se:"nwse-resize",ne:"nesw-resize",sw:"nesw-resize"
-  };
-  HANDLES.forEach(dir=>{
-    const h=document.createElement("div");
-    h.style.cssText=
-      "position:absolute;width:44px;height:44px;"+
-      "display:flex;align-items:center;justify-content:center;"+
-      "cursor:"+(CURSOR_MAP[dir]||"move")+";z-index:10;touch-action:none;";
-    const dot=document.createElement("div");
-    dot.style.cssText=
-      "width:12px;height:12px;background:#fff;border-radius:50%;"+
-      "box-shadow:0 0 0 2px rgba(0,0,0,.5);pointer-events:none;";
-    h.appendChild(dot);
-    handleEls[dir]=h;
-    sel.appendChild(h);
-  });
+  barBtns.appendChild(backBtn);barBtns.appendChild(shotBtn);
+  bar.appendChild(barInfo);bar.appendChild(barBtns);
 
   const vw=window.innerWidth;
   const vh=window.innerHeight-60;
@@ -275,6 +364,7 @@ function initWebshot(){
     clampRect();
     sel.style.left=rx+"px";sel.style.top=ry+"px";
     sel.style.width=rw+"px";sel.style.height=rh+"px";
+
     mTop.style.cssText="position:absolute;background:rgba(0,0,0,.45);"+
       "left:0;top:0;width:100%;height:"+ry+"px;";
     mBot.style.cssText="position:absolute;background:rgba(0,0,0,.45);"+
@@ -284,19 +374,23 @@ function initWebshot(){
     mRgt.style.cssText="position:absolute;background:rgba(0,0,0,.45);"+
       "left:"+(rx+rw)+"px;top:"+ry+"px;"+
       "width:"+(vw-rx-rw)+"px;height:"+rh+"px;";
+
+    // 手柄位置
     const hx={w:-22,e:rw-22,n:rw/2-22,s:rw/2-22,nw:-22,ne:rw-22,sw:-22,se:rw-22};
     const hy={n:-22,s:rh-22,w:rh/2-22,e:rh/2-22,nw:-22,ne:-22,sw:rh-22,se:rh-22};
-    HANDLES.forEach(dir=>{
+    Object.keys(handleEls).forEach(dir=>{
       handleEls[dir].style.left=hx[dir]+"px";
       handleEls[dir].style.top=hy[dir]+"px";
     });
+
+    updateBorderLines(borderLines,0,0,rw,rh,vw,vh);
+
     const tipY=ry-24<0?ry+4:ry-24;
     sizeTip.textContent=rw+" × "+rh+" px";
     sizeTip.style.left=rx+"px";sizeTip.style.top=tipY+"px";
     barInfo.textContent="选区: "+rw+" × "+rh+" px  |  位置: ("+rx+", "+ry+")";
   }
 
-  // 拖动
   let activeDir=null,startX=0,startY=0;
   let startRx=0,startRy=0,startRw=0,startRh=0;
   function onDragStart(dir,cx,cy){
@@ -318,17 +412,15 @@ function initWebshot(){
   function onDragEnd(){activeDir=null;}
 
   sel.addEventListener("mousedown",e=>{
-    if(e.target===sel||e.target===sel.firstChild){
-      onDragStart("move",e.clientX,e.clientY);e.preventDefault();
-    }
+    if(e.target===sel){onDragStart("move",e.clientX,e.clientY);e.preventDefault();}
   });
   sel.addEventListener("touchstart",e=>{
-    if(e.target===sel||e.target===sel.firstChild){
+    if(e.target===sel){
       onDragStart("move",e.touches[0].clientX,e.touches[0].clientY);
       e.preventDefault();
     }
   },{passive:false});
-  HANDLES.forEach(dir=>{
+  Object.keys(handleEls).forEach(dir=>{
     handleEls[dir].addEventListener("mousedown",e=>{
       onDragStart(dir,e.clientX,e.clientY);
       e.stopPropagation();e.preventDefault();
@@ -374,14 +466,12 @@ function initWebshot(){
             const a=document.createElement("a");
             a.download="screenshot_"+getTimestamp()+".png";
             a.href=canvas.toDataURL("image/png");
-            a.click();
-            cleanup();
+            a.click();cleanup();
           });
         }).catch(err=>{
           clearInterval(progressTimer);
           progressWrap.style.display="none";
-          root.style.display="";
-          bar.style.display="";
+          root.style.display="";bar.style.display="";
           shotBtn.disabled=false;
           showErr("截图失败："+err.message);
         });
@@ -403,8 +493,6 @@ function initWebshot(){
 // 功能B：本地图片裁剪
 // ════════════════════════════════════════════════
 function initCropper(){
-
-  // 文件选择
   const fileInput=document.createElement("input");
   fileInput.type="file";
   fileInput.accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml";
@@ -413,30 +501,32 @@ function initCropper(){
 
   fileInput.addEventListener("change",()=>{
     const file=fileInput.files[0];
-    if(!file){fileInput.remove();return;}
-    if(file.size>20*1024*1024){
-      if(!confirm("图片较大("+Math.round(file.size/1024/1024*10)/10+"MB)，是否继续？"))
-        {fileInput.remove();return;}
-    }
-    const url=URL.createObjectURL(file);
-    const img=new Image();
-    img.onload=()=>{
-      URL.revokeObjectURL(url);
-      openCropUI(img,file);
-    };
-    img.onerror=()=>showErr("图片加载失败");
-    img.src=url;
     fileInput.remove();
+    if(!file)return;
+    if(file.size>20*1024*1024){
+      if(!confirm("图片较大("+
+        Math.round(file.size/1024/1024*10)/10+"MB)，是否继续？"))return;
+    }
+
+    // ── 修复预览：用FileReader转base64，不用revokeObjectURL ──
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const dataURL=e.target.result;
+      const img=new Image();
+      img.onload=()=>openCropUI(img,file,dataURL);
+      img.onerror=()=>showErr("图片加载失败");
+      img.src=dataURL;
+    };
+    reader.onerror=()=>showErr("文件读取失败");
+    reader.readAsDataURL(file);
   });
 
   fileInput.click();
 
-  function openCropUI(img,file){
-
+  function openCropUI(img,file,dataURL){
     const naturalW=img.naturalWidth;
     const naturalH=img.naturalHeight;
 
-    // 超大图提示
     if(naturalW>4000||naturalH>4000){
       showErr("图片分辨率较高("+naturalW+"×"+naturalH+")，裁剪导出可能稍慢");
     }
@@ -457,16 +547,12 @@ function initCropper(){
       "background:#222;color:#fff;padding:10px 16px;"+
       "font-size:14px;font-weight:bold;flex-shrink:0;"+
       "display:flex;align-items:center;justify-content:space-between;";
-
     const titleText=document.createElement("span");
     titleText.textContent="🖼 本地图片裁剪";
-
     const imgInfo=document.createElement("span");
     imgInfo.style.cssText="font-size:12px;color:#aaa;font-weight:normal;";
     imgInfo.textContent="原图: "+naturalW+" × "+naturalH+" px";
-
-    titleBar.appendChild(titleText);
-    titleBar.appendChild(imgInfo);
+    titleBar.appendChild(titleText);titleBar.appendChild(imgInfo);
 
     // 图片显示区
     const imgWrap=document.createElement("div");
@@ -474,29 +560,26 @@ function initCropper(){
       "flex:1;position:relative;overflow:hidden;"+
       "display:flex;align-items:center;justify-content:center;";
 
-    // 计算图片显示尺寸（等比适配）
     const maxW=window.innerWidth;
     const maxH=window.innerHeight-120;
     const scaleRatio=Math.min(maxW/naturalW,maxH/naturalH,1);
     const dispW=Math.round(naturalW*scaleRatio);
     const dispH=Math.round(naturalH*scaleRatio);
 
-    const imgEl=document.createElement("img");
-    imgEl.src=img.src;
-    imgEl.style.cssText=
-      "width:"+dispW+"px;height:"+dispH+"px;"+
-      "display:block;user-select:none;pointer-events:none;"+
-      "position:absolute;";
-
-    // 图片容器（定位基准）
+    // 图片容器
     const imgContainer=document.createElement("div");
     imgContainer.style.cssText=
       "position:relative;width:"+dispW+"px;height:"+dispH+"px;flex-shrink:0;";
 
-    // 旋转状态
-    let rotation=0;
+    // ── 修复预览：用dataURL作为src ──────────────
+    const imgEl=document.createElement("img");
+    imgEl.src=dataURL;
+    imgEl.style.cssText=
+      "position:absolute;top:0;left:0;"+
+      "width:"+dispW+"px;height:"+dispH+"px;"+
+      "display:block;user-select:none;pointer-events:none;";
 
-    // 选区覆盖层
+    // 覆盖层
     const overlay=document.createElement("div");
     overlay.style.cssText=
       "position:absolute;top:0;left:0;width:100%;height:100%;";
@@ -509,11 +592,13 @@ function initCropper(){
     };
     const mTop=mkMask(),mBot=mkMask(),mLft=mkMask(),mRgt=mkMask();
 
-    // 选区
+    // 选区容器
     const sel=document.createElement("div");
     sel.style.cssText=
-      "position:absolute;border:2px solid #fff;cursor:move;"+
-      "box-shadow:0 0 0 1px rgba(0,0,0,.5);box-sizing:border-box;";
+      "position:absolute;cursor:move;box-sizing:border-box;";
+
+    const borderLines=buildBorderLines(sel);
+    const handleEls=buildHandles(sel,"#fff");
 
     // 尺寸提示
     const sizeTip=document.createElement("div");
@@ -522,29 +607,10 @@ function initCropper(){
       "font-size:11px;padding:2px 6px;border-radius:3px;"+
       "pointer-events:none;white-space:nowrap;z-index:20;";
 
-    // 8手柄
-    const HANDLES=["n","s","e","w","nw","ne","sw","se"];
-    const handleEls={};
-    const CURSOR_MAP={
-      n:"ns-resize",s:"ns-resize",e:"ew-resize",w:"ew-resize",
-      nw:"nwse-resize",se:"nwse-resize",ne:"nesw-resize",sw:"nesw-resize"
-    };
-    HANDLES.forEach(dir=>{
-      const h=document.createElement("div");
-      h.style.cssText=
-        "position:absolute;width:44px;height:44px;"+
-        "display:flex;align-items:center;justify-content:center;"+
-        "cursor:"+(CURSOR_MAP[dir]||"move")+";z-index:10;touch-action:none;";
-      const dot=document.createElement("div");
-      dot.style.cssText=
-        "width:11px;height:11px;background:#fff;border-radius:50%;"+
-        "box-shadow:0 0 0 2px rgba(0,0,0,.5);pointer-events:none;";
-      h.appendChild(dot);
-      handleEls[dir]=h;
-      sel.appendChild(h);
-    });
+    // 旋转
+    let rotation=0;
 
-    // 选区状态（显示坐标）
+    // 选区状态
     let rx=Math.round(dispW*0.15),ry=Math.round(dispH*0.15);
     let rw=Math.round(dispW*0.7),rh=Math.round(dispH*0.7);
     const MIN_SIZE=20;
@@ -555,11 +621,8 @@ function initCropper(){
       ry=Math.max(0,Math.min(ry,dispH-rh));
     }
 
-    // 原图实际裁剪坐标
     function getRealCrop(){
-      let cw=dispW,ch=dispH;
-      if(rotation===90||rotation===270){cw=dispH;ch=dispW;}
-      const sX=naturalW/cw,sY=naturalH/ch;
+      const sX=naturalW/dispW,sY=naturalH/dispH;
       let cx,cy,cW,cH;
       if(rotation===0){
         cx=rx*sX;cy=ry*sY;cW=rw*sX;cH=rh*sY;
@@ -576,6 +639,14 @@ function initCropper(){
       };
     }
 
+    // 底部工具栏（提前声明barInfo供render使用）
+    const bar=document.createElement("div");
+    bar.style.cssText=
+      "background:rgba(30,30,30,.95);padding:10px 12px;"+
+      "display:flex;flex-direction:column;gap:8px;flex-shrink:0;";
+    const barInfo=document.createElement("div");
+    barInfo.style.cssText="color:#aaa;font-size:11px;text-align:center;";
+
     function render(){
       clampRect();
       sel.style.left=rx+"px";sel.style.top=ry+"px";
@@ -591,15 +662,20 @@ function initCropper(){
         "left:"+(rx+rw)+"px;top:"+ry+"px;"+
         "width:"+(dispW-rx-rw)+"px;height:"+rh+"px;";
 
-      const hx={w:-22,e:rw-22,n:rw/2-22,s:rw/2-22,nw:-22,ne:rw-22,sw:-22,se:rw-22};
-      const hy={n:-22,s:rh-22,w:rh/2-22,e:rh/2-22,nw:-22,ne:-22,sw:rh-22,se:rh-22};
-      HANDLES.forEach(dir=>{
+      const hx={w:-22,e:rw-22,n:rw/2-22,s:rw/2-22,
+                nw:-22,ne:rw-22,sw:-22,se:rw-22};
+      const hy={n:-22,s:rh-22,w:rh/2-22,e:rh/2-22,
+                nw:-22,ne:-22,sw:rh-22,se:rh-22};
+      Object.keys(handleEls).forEach(dir=>{
         handleEls[dir].style.left=hx[dir]+"px";
         handleEls[dir].style.top=hy[dir]+"px";
       });
 
-      const tipY=ry-20<0?ry+4:ry-20;
+      // 边界反馈（选区相对overlay坐标）
+      updateBorderLines(borderLines,0,0,rw,rh,dispW,dispH);
+
       const rc=getRealCrop();
+      const tipY=ry-20<0?ry+4:ry-20;
       sizeTip.textContent="裁剪: "+rc.cW+" × "+rc.cH+" px";
       sizeTip.style.left=rx+"px";sizeTip.style.top=tipY+"px";
       barInfo.textContent=
@@ -628,17 +704,17 @@ function initCropper(){
     function onDragEnd(){activeDir=null;}
 
     sel.addEventListener("mousedown",e=>{
-      if(e.target===sel||e.target===sel.firstChild){
+      if(e.target===sel){
         onDragStart("move",e.clientX,e.clientY);e.preventDefault();
       }
     });
     sel.addEventListener("touchstart",e=>{
-      if(e.target===sel||e.target===sel.firstChild){
+      if(e.target===sel){
         onDragStart("move",e.touches[0].clientX,e.touches[0].clientY);
         e.preventDefault();
       }
     },{passive:false});
-    HANDLES.forEach(dir=>{
+    Object.keys(handleEls).forEach(dir=>{
       handleEls[dir].addEventListener("mousedown",e=>{
         onDragStart(dir,e.clientX,e.clientY);
         e.stopPropagation();e.preventDefault();
@@ -662,15 +738,7 @@ function initCropper(){
     document.addEventListener("touchmove",onTMove,{passive:false});
     document.addEventListener("touchend",onUp);
 
-    // 底部工具栏
-    const bar=document.createElement("div");
-    bar.style.cssText=
-      "background:rgba(30,30,30,.95);padding:10px 12px;"+
-      "display:flex;flex-direction:column;gap:8px;flex-shrink:0;";
-
-    const barInfo=document.createElement("div");
-    barInfo.style.cssText="color:#aaa;font-size:11px;text-align:center;";
-
+    // 按钮行
     const barBtns=document.createElement("div");
     barBtns.style.cssText="display:flex;gap:8px;";
 
@@ -680,17 +748,13 @@ function initCropper(){
       b.style.cssText=
         "flex:1;padding:9px 4px;background:"+bg+";color:#fff;border:none;"+
         "border-radius:6px;font-size:13px;cursor:pointer;";
-      b.onclick=fn;
-      return b;
+      b.onclick=fn;return b;
     }
 
-    const backBtn=mkBarBtn("← 返回","#555",()=>{
-      cleanup();showHome();
-    });
+    const backBtn=mkBarBtn("← 返回","#555",()=>{cleanup();showHome();});
     const rotLBtn=mkBarBtn("↺ 左转","#607d8b",()=>{
       rotation=(rotation+270)%360;
       imgEl.style.transform="rotate("+rotation+"deg)";
-      // 左右旋转时交换选区尺寸
       [rw,rh]=[rh,rw];
       rx=Math.round((dispW-rw)/2);
       ry=Math.round((dispH-rh)/2);
@@ -709,9 +773,9 @@ function initCropper(){
     });
     const cropBtn=mkBarBtn("✂ 裁剪保存","#0078ff",doCrop);
 
-    [backBtn,rotLBtn,rotRBtn,allBtn,cropBtn].forEach(b=>barBtns.appendChild(b));
-    bar.appendChild(barInfo);
-    bar.appendChild(barBtns);
+    [backBtn,rotLBtn,rotRBtn,allBtn,cropBtn]
+      .forEach(b=>barBtns.appendChild(b));
+    bar.appendChild(barInfo);bar.appendChild(barBtns);
 
     // 组装
     [mTop,mBot,mLft,mRgt,sel,sizeTip].forEach(e=>overlay.appendChild(e));
@@ -729,19 +793,14 @@ function initCropper(){
       cropBtn.disabled=true;
       cropBtn.textContent="处理中...";
       const rc=getRealCrop();
-
       setTimeout(()=>{
         try{
           const canvas=document.createElement("canvas");
-          canvas.width=rc.cW;
-          canvas.height=rc.cH;
+          canvas.width=rc.cW;canvas.height=rc.cH;
           const ctx=canvas.getContext("2d");
-
-          // 处理旋转：在canvas上旋转后裁剪
           if(rotation===0){
             ctx.drawImage(img,rc.cx,rc.cy,rc.cW,rc.cH,0,0,rc.cW,rc.cH);
           } else {
-            // 先旋转整图到临时canvas
             const tmpC=document.createElement("canvas");
             if(rotation===90||rotation===270){
               tmpC.width=naturalH;tmpC.height=naturalW;
@@ -754,15 +813,12 @@ function initCropper(){
             tmpCtx.drawImage(img,-naturalW/2,-naturalH/2);
             ctx.drawImage(tmpC,rc.cx,rc.cy,rc.cW,rc.cH,0,0,rc.cW,rc.cH);
           }
-
-          // 导出格式
           const dot=file.name.lastIndexOf(".");
           const base=dot>0?file.name.slice(0,dot):file.name;
           const ext=dot>0?file.name.slice(dot).toLowerCase():".png";
-          const mime=ext===".jpg"||ext===".jpeg"?"image/jpeg":"image/png";
+          const mime=(ext===".jpg"||ext===".jpeg")?"image/jpeg":"image/png";
           const outExt=mime==="image/jpeg"?".jpg":".png";
           const outName=getTimestamp()+"_"+base+"_crop"+outExt;
-
           canvas.toBlob(blob=>{
             const u=URL.createObjectURL(blob);
             const a=document.createElement("a");
@@ -771,7 +827,6 @@ function initCropper(){
             cropBtn.disabled=false;
             cropBtn.textContent="✂ 裁剪保存";
           },mime,0.95);
-
         } catch(e){
           showErr("裁剪失败："+e.message);
           cropBtn.disabled=false;
@@ -791,7 +846,6 @@ function initCropper(){
   }
 }
 
-// ── 启动 ──────────────────────────────────────
 showHome();
 
 })();
