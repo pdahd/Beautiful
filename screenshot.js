@@ -1,4 +1,4 @@
-// screenshot.js v1.1 — 选区截图工具（进度提示+性能优化）
+// screenshot.js v1.2 — 修复进度弹窗被截入截图的问题
 (function(){
 
 const TOOL_ID="sc_tool_987";
@@ -29,7 +29,7 @@ loadH2C(initTool);
 
 function initTool(){
 
-  const dpr=Math.min(window.devicePixelRatio||1, 2);
+  const dpr=Math.min(window.devicePixelRatio||1,2);
   const prevOverflow=document.body.style.overflow;
   document.body.style.overflow="hidden";
 
@@ -64,7 +64,7 @@ function initTool(){
     "font-size:12px;padding:2px 8px;border-radius:4px;"+
     "pointer-events:none;white-space:nowrap;";
 
-  // ── 进度遮罩 ────────────────────────────────
+  // ── 进度遮罩（截图完成前不显示）─────────────
   const progressWrap=document.createElement("div");
   progressWrap.style.cssText=
     "position:fixed;top:0;left:0;width:100%;height:100%;"+
@@ -78,8 +78,7 @@ function initTool(){
     "text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3);min-width:220px;";
 
   const progressIcon=document.createElement("div");
-  progressIcon.style.cssText=
-    "font-size:36px;margin-bottom:12px;";
+  progressIcon.style.cssText="font-size:36px;margin-bottom:12px;";
   progressIcon.textContent="📷";
 
   const progressText=document.createElement("div");
@@ -97,8 +96,7 @@ function initTool(){
     "border-radius:3px;transition:width .3s;";
 
   const progressSub=document.createElement("div");
-  progressSub.style.cssText=
-    "font-size:12px;color:#888;margin-top:10px;";
+  progressSub.style.cssText="font-size:12px;color:#888;margin-top:10px;";
   progressSub.textContent="页面越复杂耗时越长，请耐心等待";
 
   progressBarWrap.appendChild(progressBar);
@@ -108,15 +106,14 @@ function initTool(){
   progressBox.appendChild(progressSub);
   progressWrap.appendChild(progressBox);
 
-  // 模拟进度动画
   let progressTimer=null;
   let currentProgress=0;
+
   function startProgress(){
+    // 截图已在后台运行，此时才显示弹窗，不会被截入
     progressWrap.style.display="flex";
     currentProgress=0;
     progressBar.style.width="0%";
-    progressText.textContent="正在截图...";
-    // 模拟进度：前90%用动画填充，最后10%等真实完成
     progressTimer=setInterval(()=>{
       if(currentProgress<90){
         currentProgress+=Math.random()*8;
@@ -128,13 +125,14 @@ function initTool(){
       }
     },400);
   }
-  function finishProgress(){
+
+  function finishProgress(cb){
     clearInterval(progressTimer);
-    currentProgress=100;
     progressBar.style.width="100%";
     progressText.textContent="截图完成！";
     setTimeout(()=>{
       progressWrap.style.display="none";
+      cb();
     },600);
   }
 
@@ -165,7 +163,6 @@ function initTool(){
 
   const cancelBtn=mkBarBtn("取消","#666",cleanup);
   const shotBtn=mkBarBtn("📷 截图保存","#0078ff",doCapture);
-
   barBtns.appendChild(cancelBtn);
   barBtns.appendChild(shotBtn);
   bar.appendChild(barInfo);
@@ -182,7 +179,6 @@ function initTool(){
       ne:"nesw-resize",sw:"nesw-resize"
     }[dir]||"move";
   }
-
   HANDLES.forEach(dir=>{
     const h=document.createElement("div");
     h.style.cssText=
@@ -214,7 +210,6 @@ function initTool(){
     ry=Math.max(0,Math.min(ry,vh-rh));
   }
 
-  // ── 渲染 ────────────────────────────────────
   function render(){
     clampRect();
     sel.style.left=rx+"px";
@@ -252,8 +247,7 @@ function initTool(){
   let startRx=0,startRy=0,startRw=0,startRh=0;
 
   function onDragStart(dir,cx,cy){
-    activeDir=dir;
-    startX=cx;startY=cy;
+    activeDir=dir;startX=cx;startY=cy;
     startRx=rx;startRy=ry;startRw=rw;startRh=rh;
   }
   function onDragMove(cx,cy){
@@ -300,7 +294,10 @@ function initTool(){
 
   function onMove(e){onDragMove(e.clientX,e.clientY);}
   function onTMove(e){
-    if(activeDir){onDragMove(e.touches[0].clientX,e.touches[0].clientY);e.preventDefault();}
+    if(activeDir){
+      onDragMove(e.touches[0].clientX,e.touches[0].clientY);
+      e.preventDefault();
+    }
   }
   function onUp(){onDragEnd();}
 
@@ -311,17 +308,21 @@ function initTool(){
   document.body.appendChild(progressWrap);
   render();
 
-  // ── 截图执行 ────────────────────────────────
+  // ── 截图执行（修复时序）──────────────────────
   function doCapture(){
     shotBtn.disabled=true;
+
+    // 第一步：隐藏所有UI包括progressWrap
     root.style.display="none";
     bar.style.display="none";
+    progressWrap.style.display="none";
 
-    // 稍等UI隐藏后再启动进度和截图
-    setTimeout(()=>{
-      startProgress();
-      setTimeout(()=>{
-        html2canvas(document.body,{
+    // 第二步：等浏览器重绘完成
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+
+        // 第三步：启动截图（异步，后台开始跑）
+        const capturePromise=html2canvas(document.body,{
           x:rx,
           y:ry+window.scrollY,
           width:rw,
@@ -331,16 +332,24 @@ function initTool(){
           allowTaint:false,
           logging:false,
           imageTimeout:8000
-        }).then(canvas=>{
-          finishProgress();
-          const d=new Date();
-          const p=n=>String(n).padStart(2,"0");
-          const ts=d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+
-            "_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());
-          const a=document.createElement("a");
-          a.download="screenshot_"+ts+".png";
-          a.href=canvas.toDataURL("image/png");
-          setTimeout(()=>{a.click();cleanup();},700);
+        });
+
+        // 第四步：截图后台运行期间显示进度弹窗
+        startProgress();
+
+        // 第五步：截图完成处理
+        capturePromise.then(canvas=>{
+          finishProgress(()=>{
+            const d=new Date();
+            const p=n=>String(n).padStart(2,"0");
+            const ts=d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+
+              "_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());
+            const a=document.createElement("a");
+            a.download="screenshot_"+ts+".png";
+            a.href=canvas.toDataURL("image/png");
+            a.click();
+            cleanup();
+          });
         }).catch(err=>{
           clearInterval(progressTimer);
           progressWrap.style.display="none";
@@ -349,8 +358,9 @@ function initTool(){
           shotBtn.disabled=false;
           showErr("截图失败："+err.message);
         });
-      },100);
-    },200);
+
+      });
+    });
   }
 
   // ── 清理 ────────────────────────────────────
