@@ -1,4 +1,4 @@
-// screenshot.js v2.2 — 裁剪框严格限界+手柄内移+取消吸附变色
+// screenshot.js v2.3 — 恢复网页截图视口边界限制
 (function(){
 
 const TOOL_ID="sc_tool_987";
@@ -344,12 +344,14 @@ function initWebshot(){
   let rw=Math.round(vw*0.6),rh=Math.round(vh*0.6);
   const MIN_SIZE=40;
 
-  // 网页截图：不限制边界（自由选区）
+  // 网页截图：限制在视口范围内
   function clampRect(){
-    rw=Math.max(MIN_SIZE,rw);
-    rh=Math.max(MIN_SIZE,rh);
+    rw=Math.max(MIN_SIZE,Math.min(rw,vw));
+    rh=Math.max(MIN_SIZE,Math.min(rh,vh));
+    rx=Math.max(0,Math.min(rx,vw-rw));
+    ry=Math.max(0,Math.min(ry,vh-rh));
   }
-
+ 
   function render(){
     clampRect();
     sel.style.left=rx+"px";sel.style.top=ry+"px";
