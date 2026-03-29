@@ -1,4 +1,4 @@
-// inspector.js v1.4 — 面板高度自由拖动，用户权限最大
+// inspector.js v1.5 — 修复标签页内容横向排列问题
 (function(){
 
 const ROOT_ID="inspector_root";
@@ -21,7 +21,6 @@ const THEME={
     actBg:"#f0f4ff",actBorder:"#c5d8ff",
     shadow:"rgba(0,0,0,.15)",
     consoleBg:"#1a1a1a",
-    consoleText:"#f0f0f0",
     consoleInput:"#252526",
     consoleBorder:"#333",
     handleBg:"#e8edf5",
@@ -39,7 +38,6 @@ const THEME={
     actBg:"#2a2a2a",actBorder:"#444",
     shadow:"rgba(0,0,0,.4)",
     consoleBg:"#0d0d0d",
-    consoleText:"#f0f0f0",
     consoleInput:"#1a1a1a",
     consoleBorder:"#222",
     handleBg:"#2a2a2a",
@@ -721,7 +719,7 @@ function renderDrawer(){
 }
 
 // ════════════════════════════════════════════════
-// 主面板（高度完全由用户控制）
+// 主面板
 // ════════════════════════════════════════════════
 const VH=window.innerHeight;
 const MIN_PANEL_H=100;
@@ -739,7 +737,7 @@ onTheme(()=>{
   panel.style.boxShadow="0 -4px 20px "+T.shadow;
 });
 
-// ── 拖动手柄（44px高，整条可拖，双击切换全屏）─
+// ── 拖动手柄 ──────────────────────────────────
 const dragHandle=document.createElement("div");
 dragHandle.style.cssText=
   "height:44px;display:flex;align-items:center;"+
@@ -750,11 +748,9 @@ onTheme(()=>{
   dragHandle.style.borderBottom="1px solid "+T.border2;
 });
 
-// 三横线图标
 const dragIcon=document.createElement("div");
 dragIcon.style.cssText=
-  "display:flex;flex-direction:column;gap:5px;"+
-  "pointer-events:none;";
+  "display:flex;flex-direction:column;gap:5px;pointer-events:none;";
 [32,22,32].forEach(w=>{
   const bar=document.createElement("div");
   bar.style.cssText="height:3px;border-radius:2px;width:"+w+"px;";
@@ -762,7 +758,6 @@ dragIcon.style.cssText=
   dragIcon.appendChild(bar);
 });
 
-// 高度提示标签
 const heightTip=document.createElement("span");
 heightTip.style.cssText=
   "position:absolute;right:12px;font-size:11px;"+
@@ -772,7 +767,6 @@ onTheme(()=>heightTip.style.color=T.text2);
 dragHandle.appendChild(dragIcon);
 dragHandle.appendChild(heightTip);
 
-// 拖动状态
 let panelDragging=false,panelStartY=0,panelStartH=0;
 let lastTapTime=0;
 
@@ -783,9 +777,7 @@ function setPanelHeight(h){
 }
 
 function onPanelDragStart(y){
-  panelDragging=true;
-  panelStartY=y;
-  panelStartH=panelHeight;
+  panelDragging=true;panelStartY=y;panelStartH=panelHeight;
   heightTip.style.opacity="1";
   onTheme(()=>dragHandle.style.background=T.handleActive);
 }
@@ -802,52 +794,38 @@ function onPanelDragEnd(){
   onTheme(()=>dragHandle.style.background=T.handleBg);
 }
 
-// 双击手柄：在50%和全屏之间切换
 function onHandleDblClick(){
   const half=Math.round(VH*0.5);
-  const full=MAX_PANEL_H;
-  setPanelHeight(panelHeight<full-20?full:half);
-}
-
-// 触控双击
-function onHandleTouchEnd(e){
-  const now=Date.now();
-  if(now-lastTapTime<300){
-    onHandleDblClick();lastTapTime=0;
-  } else {
-    lastTapTime=now;
-  }
+  setPanelHeight(panelHeight<MAX_PANEL_H-20?MAX_PANEL_H:half);
 }
 
 dragHandle.addEventListener("mousedown",e=>{
-  onPanelDragStart(e.clientY);
-  e.preventDefault();e.stopPropagation();
+  onPanelDragStart(e.clientY);e.preventDefault();e.stopPropagation();
 });
 dragHandle.addEventListener("dblclick",e=>{
   onHandleDblClick();e.stopPropagation();
 });
 dragHandle.addEventListener("touchstart",e=>{
-  onPanelDragStart(e.touches[0].clientY);
+  const now=Date.now();
+  if(now-lastTapTime<300){
+    onHandleDblClick();lastTapTime=0;
+  } else {
+    lastTapTime=now;
+    onPanelDragStart(e.touches[0].clientY);
+  }
   e.stopPropagation();
 },{passive:true});
 dragHandle.addEventListener("touchend",e=>{
-  onPanelDragEnd();
-  onHandleTouchEnd(e);
-  e.stopPropagation();
+  onPanelDragEnd();e.stopPropagation();
 });
 
-// document级别拖动事件
 document.addEventListener("mousemove",e=>{
-  if(panelDragging){
-    onPanelDragMove(e.clientY);
-    e.preventDefault();
-  }
+  if(panelDragging){onPanelDragMove(e.clientY);e.preventDefault();}
 });
 document.addEventListener("mouseup",onPanelDragEnd);
 document.addEventListener("touchmove",e=>{
   if(panelDragging){
-    onPanelDragMove(e.touches[0].clientY);
-    e.preventDefault();
+    onPanelDragMove(e.touches[0].clientY);e.preventDefault();
   }
 },{passive:false});
 document.addEventListener("touchend",e=>{
@@ -877,7 +855,7 @@ onTheme(()=>{
   breadcrumb.style.color=T.text2;
 });
 
-// ── 标签页 ────────────────────────────────────
+// ── 标签页导航 ────────────────────────────────
 const tabBar=document.createElement("div");
 tabBar.style.cssText=
   "display:flex;flex-shrink:0;overflow-x:auto;";
@@ -899,14 +877,21 @@ TABS.forEach(name=>{
   tabBtns[name]=btn;tabBar.appendChild(btn);
 
   const pane=document.createElement("div");
-  // 关键：所有标签页统一用 flex:1 + overflow-y:auto
-  // 不依赖内容高度撑开面板
-  pane.style.cssText=
-    "flex:1;overflow-y:auto;display:none;min-height:0;";
-  if(name!=="控制台") pane.style.padding="10px 12px";
-  onTheme(()=>{
-    pane.style.background=name==="控制台"?T.consoleBg:T.bg;
-  });
+
+  if(name==="控制台"){
+    // 控制台：flex布局，内部自己管理空间
+    pane.style.cssText=
+      "flex:1;display:none;flex-direction:column;"+
+      "min-height:0;overflow:hidden;";
+    onTheme(()=>pane.style.background=T.consoleBg);
+  } else {
+    // ★ 核心修复：普通标签页用 block，纵向内容，支持上下左右滚动
+    pane.style.cssText=
+      "flex:1;display:none;overflow-y:auto;overflow-x:auto;"+
+      "min-height:0;padding:10px 12px;box-sizing:border-box;";
+    onTheme(()=>pane.style.background=T.bg);
+  }
+
   tabPanels[name]=pane;
 });
 
@@ -919,16 +904,21 @@ function switchTab(name){
     tabBtns[n].style.fontWeight=active?"bold":"normal";
     tabBtns[n].style.background=T.bg;
     tabBtns[n].style.color=active?T.text3:T.text2;
-    tabPanels[n].style.display=active?"flex":"none";
-    if(n==="控制台"&&active)
-      tabPanels[n].style.flexDirection="column";
+
+    if(active){
+      // ★ 核心修复：控制台用flex，其他标签页用block
+      tabPanels[n].style.display=
+        n==="控制台"?"flex":"block";
+    } else {
+      tabPanels[n].style.display="none";
+    }
   });
   currentTab=name;
   if(name==="控制台")hookConsole();
 }
 switchTab("尺寸");
 
-// 内容区：flex:1 + overflow:hidden，高度由 panel.height 决定
+// 内容区：flex:1撑满剩余高度，overflow:hidden防止撑开面板
 const contentArea=document.createElement("div");
 contentArea.style.cssText=
   "flex:1;display:flex;flex-direction:column;"+
@@ -967,7 +957,6 @@ const actExport =mkAct("📄 导出",exportReport);
 [actParent,actPrev,actNext,actChildren,actMeasure,actExport]
   .forEach(b=>actionBar.appendChild(b));
 
-// 组装面板
 panel.appendChild(dragHandle);
 panel.appendChild(elIdRow);
 panel.appendChild(breadcrumb);
@@ -1000,9 +989,9 @@ function buildConsoleTab(){
     "color:#666;border-bottom:1px solid #2a2a2a;margin-bottom:4px;";
   welcome.innerHTML=
     "📐 Inspector Console &nbsp;|&nbsp; "+
-    "<span style='color:#81c784'>$el</span> = 当前锁定元素 &nbsp;"+
-    "<span style='color:#81c784'>$$</span> = querySelectorAll &nbsp;"+
-    "<span style='color:#81c784'>$q</span> = querySelector";
+    "<span style='color:#81c784'>$el</span>=当前锁定元素 &nbsp;"+
+    "<span style='color:#81c784'>$$</span>=querySelectorAll &nbsp;"+
+    "<span style='color:#81c784'>$q</span>=querySelector";
   output.appendChild(welcome);
 
   const toolbar=document.createElement("div");
@@ -1096,8 +1085,7 @@ function buildConsoleTab(){
     }
     histIdx=-1;
     execCode(code,lockedEl,hoveredEl);
-    input.value="";
-    input.style.height="auto";
+    input.value="";input.style.height="auto";
     input.focus();
   }
 
@@ -1125,7 +1113,6 @@ function buildConsoleTab(){
     }
   });
 
-  // 控制台区域阻止事件冒泡
   [output,inputWrap,toolbar].forEach(el=>{
     el.addEventListener("click",e=>e.stopPropagation());
     el.addEventListener("touchend",e=>e.stopPropagation());
@@ -1280,54 +1267,71 @@ function renderStyles(el){
 function renderDOMTree(el){
   const pane=tabPanels["DOM树"];pane.innerHTML="";if(!el)return;
   const chain=getAncestorChain(el);
+
   const t1=document.createElement("div");
   t1.style.cssText="font-size:11px;margin-bottom:6px;";
   onTheme(()=>t1.style.color=T.text2);
   t1.textContent="祖先链（根节点 → 当前元素）";
   pane.appendChild(t1);
+
   chain.forEach((node,depth)=>{
     const isCur=node===el;
     const row=document.createElement("div");
+    // ★ 确保每行是块级，纵向排列
     row.style.cssText=
-      "display:flex;align-items:center;padding:3px 0;"+
-      "padding-left:"+(depth*12)+"px;border-radius:4px;"+
-      "cursor:"+(isCur?"default":"pointer")+";";
+      "display:block;padding:3px 0 3px "+(depth*12)+"px;"+
+      "border-radius:4px;cursor:"+(isCur?"default":"pointer")+";"+
+      "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
     onTheme(()=>{
       row.style.color=isCur?T.text3:T.text;
       if(isCur)row.style.background=T.bg2;
     });
+
     const arr=document.createElement("span");
     arr.style.cssText="margin-right:4px;font-size:10px;";
     onTheme(()=>arr.style.color=T.text2);
     arr.textContent=depth<chain.length-1?"▼":"►";
+
     const lbl=document.createElement("span");
     lbl.style.cssText="font-size:12px;"+(isCur?"font-weight:bold;":"");
     lbl.textContent=getElId(node);
+
     row.appendChild(arr);row.appendChild(lbl);
     if(!isCur){
       row.onclick=(e)=>{e.stopPropagation();lockElement(node);};
       row.onmouseover=()=>row.style.background=T.rowHover;
-      row.onmouseout=()=>row.style.background="";
+      row.onmouseout=()=>{
+        if(node!==el)row.style.background="";
+      };
     }
     pane.appendChild(row);
   });
+
   const children=Array.from(el.children);
   if(children.length){
     const t2=document.createElement("div");
     t2.style.cssText="font-size:11px;margin:10px 0 6px;padding-top:8px;";
-    onTheme(()=>{t2.style.color=T.text2;t2.style.borderTop="1px solid "+T.border2;});
-    t2.textContent="直接子节点（"+children.length+"）";pane.appendChild(t2);
+    onTheme(()=>{
+      t2.style.color=T.text2;
+      t2.style.borderTop="1px solid "+T.border2;
+    });
+    t2.textContent="直接子节点（"+children.length+"）";
+    pane.appendChild(t2);
     children.forEach(child=>{
       const r=document.createElement("div");
+      // ★ display:block 纵向
       r.style.cssText=
-        "padding:3px 8px;cursor:pointer;border-radius:4px;"+
-        "font-size:12px;display:flex;align-items:center;gap:6px;";
+        "display:flex;align-items:center;gap:6px;"+
+        "padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px;"+
+        "white-space:nowrap;overflow:hidden;";
       onTheme(()=>r.style.color=T.text);
       const ic=document.createElement("span");ic.textContent="►";
       onTheme(()=>ic.style.color=T.text2);
-      const lb=document.createElement("span");lb.textContent=getElId(child);
+      const lb=document.createElement("span");
+      lb.style.cssText="flex:1;overflow:hidden;text-overflow:ellipsis;";
+      lb.textContent=getElId(child);
       const sz=document.createElement("span");
-      sz.style.cssText="font-size:10px;margin-left:auto;";
+      sz.style.cssText="font-size:10px;flex-shrink:0;";
       onTheme(()=>sz.style.color=T.text2);
       try{
         const cr=child.getBoundingClientRect();
@@ -1340,17 +1344,23 @@ function renderDOMTree(el){
       pane.appendChild(r);
     });
   }
+
   const sibs=Array.from(el.parentElement?.children||[])
     .filter(c=>c!==el);
   if(sibs.length){
     const t3=document.createElement("div");
     t3.style.cssText="font-size:11px;margin:10px 0 6px;padding-top:8px;";
-    onTheme(()=>{t3.style.color=T.text2;t3.style.borderTop="1px solid "+T.border2;});
-    t3.textContent="兄弟节点（"+sibs.length+"）";pane.appendChild(t3);
+    onTheme(()=>{
+      t3.style.color=T.text2;
+      t3.style.borderTop="1px solid "+T.border2;
+    });
+    t3.textContent="兄弟节点（"+sibs.length+"）";
+    pane.appendChild(t3);
     sibs.slice(0,10).forEach(sib=>{
       const r=document.createElement("div");
       r.style.cssText=
-        "padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px;";
+        "padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px;"+
+        "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
       onTheme(()=>r.style.color=T.text);
       r.textContent=getElId(sib);
       r.onclick=(e)=>{e.stopPropagation();lockElement(sib);};
