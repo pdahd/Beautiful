@@ -1584,70 +1584,77 @@ function drawLine(x1,y1,x2,y2,color,label,dashed){
 // 导出报告
 // ════════════════════════════════════════════════
 function exportReport(){
-  const el=getCurrentEl();
-  if(!el){showToast("请先选中一个元素",true);return;}
-  const d=getDimensions(el);
-  const styles=getStyles(el);
-  const a11y=getA11y(el);
-  const chain=getAncestorChain(el)
-    .map(n=>getElId(n)).join(" › ");
-  const ts=getTimestamp();
+  try{
+    const el=lockedEl||hoveredEl;
+    if(!el){showToast("请先锁定一个元素",true);return;}
+    const d=getDimensions(el);
+    const styles=getStyles(el);
+    let a11y=[];
+    try{a11y=getA11y(el);}catch(e){}
+    const chain=getAncestorChain(el).map(n=>getElId(n)).join(" › ");
+    const ts=getTimestamp();
+    const html="<!DOCTYPE html>\n"+
+      "<html lang=\"zh\">\n<head>\n"+
+      "<meta charset=\"utf-8\">\n"+
+      "<title>元素检测报告 "+ts+"</title>\n"+
+      "<style>\n"+
+      "body{font-family:monospace;padding:20px;color:#333;"+
+      "max-width:800px;margin:0 auto;}\n"+
+      "h1{color:#0078ff;font-size:18px;}\n"+
+      "h2{color:#555;font-size:14px;margin-top:20px;"+
+      "border-bottom:1px solid #eee;padding-bottom:4px;}\n"+
+      "table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}\n"+
+      "td{padding:5px 8px;border-bottom:1px solid #f5f5f5;}\n"+
+      "td:first-child{color:#888;width:40%;}\n"+
+      ".pass{color:#4caf50;font-weight:bold;}\n"+
+      ".fail{color:#e53935;font-weight:bold;}\n"+
+      ".chain{background:#f0f4ff;padding:8px 12px;"+
+      "border-radius:6px;font-size:12px;color:#0078ff;}\n"+
+      ".meta{color:#888;font-size:12px;margin-bottom:16px;}\n"+
+      "</style>\n</head>\n<body>\n"+
+      "<h1>📐 元素检测报告</h1>\n"+
+      "<div class=\"meta\">生成时间："+ts+
+      " | 页面："+location.href+"</div>\n"+
+      "<div class=\"chain\">"+chain+"</div>\n"+
+      "<h2>元素标识</h2>\n<table>\n"+
+      "<tr><td>标签</td><td>"+el.tagName.toLowerCase()+"</td></tr>\n"+
+      "<tr><td>id</td><td>"+(el.id||"（无）")+"</td></tr>\n"+
+      "<tr><td>class</td><td>"+(el.className||"（无）")+"</td></tr>\n"+
+      "<tr><td>CSS选择器</td><td>"+getCssSelector(el)+"</td></tr>\n"+
+      "<tr><td>XPath</td><td>"+getXPath(el)+"</td></tr>\n"+
+      "</table>\n"+
+      "<h2>尺寸盒模型</h2>\n<table>\n"+
+      "<tr><td>内容尺寸</td><td>"+d.width+" × "+d.height+" px</td></tr>\n"+
+      "<tr><td>页面位置</td><td>top:"+d.top+" left:"+d.left+"</td></tr>\n"+
+      "<tr><td>margin</td><td>"+d.margin.join(" / ")+" px</td></tr>\n"+
+      "<tr><td>border</td><td>"+d.border.join(" / ")+" px</td></tr>\n"+
+      "<tr><td>padding</td><td>"+d.padding.join(" / ")+" px</td></tr>\n"+
+      "</table>\n"+
+      "<h2>常用样式</h2>\n<table>\n"+
+      styles.map(function(s){
+        return "<tr><td>"+s[0]+"</td><td>"+s[1]+"</td></tr>";
+      }).join("\n")+"\n</table>\n"+
+      "<h2>无障碍检测</h2>\n<table>\n"+
+      a11y.map(function(r){
+        return "<tr><td>"+r.label+"</td>"+
+          "<td><span class=\""+(r.pass?"pass":"fail")+
+          "\">"+(r.pass?"✔":"✗")+"</span> "+r.val+"</td></tr>";
+      }).join("\n")+"\n</table>\n"+
+      "</body></html>";
 
-  const html=`<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="utf-8">
-<title>元素检测报告 ${ts}</title>
-<style>
-body{font-family:monospace;padding:20px;color:#333;max-width:800px;margin:0 auto;}
-h1{color:#0078ff;font-size:18px;}
-h2{color:#555;font-size:14px;margin-top:20px;border-bottom:1px solid #eee;padding-bottom:4px;}
-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
-td{padding:5px 8px;border-bottom:1px solid #f5f5f5;}
-td:first-child{color:#888;width:40%;}
-.pass{color:#4caf50;font-weight:bold;}
-.fail{color:#e53935;font-weight:bold;}
-.chain{background:#f0f4ff;padding:8px 12px;border-radius:6px;font-size:12px;color:#0078ff;}
-.meta{color:#888;font-size:12px;margin-bottom:16px;}
-</style>
-</head>
-<body>
-<h1>📐 元素检测报告</h1>
-<div class="meta">生成时间：${ts} | 页面：${location.href}</div>
-<div class="chain">${chain}</div>
-<h2>元素标识</h2>
-<table>
-<tr><td>标签</td><td>${el.tagName.toLowerCase()}</td></tr>
-<tr><td>id</td><td>${el.id||"（无）"}</td></tr>
-<tr><td>class</td><td>${el.className||"（无）"}</td></tr>
-<tr><td>CSS选择器</td><td>${getCssSelector(el)}</td></tr>
-<tr><td>XPath</td><td>${getXPath(el)}</td></tr>
-</table>
-<h2>尺寸盒模型</h2>
-<table>
-<tr><td>内容尺寸</td><td>${d.width} × ${d.height} px</td></tr>
-<tr><td>页面位置</td><td>top:${d.top} left:${d.left}</td></tr>
-<tr><td>margin</td><td>${d.margin.join(" / ")} px</td></tr>
-<tr><td>border</td><td>${d.border.join(" / ")} px</td></tr>
-<tr><td>padding</td><td>${d.padding.join(" / ")} px</td></tr>
-</table>
-<h2>常用样式</h2>
-<table>
-${styles.map(([p,v])=>`<tr><td>${p}</td><td>${v}</td></tr>`).join("")}
-</table>
-<h2>无障碍检测</h2>
-<table>
-${a11y.map(r=>`<tr><td>${r.label}</td>
-<td><span class="${r.pass?"pass":"fail"}">${r.pass?"✔":"✗"}</span> ${r.val}</td></tr>`).join("")}
-</table>
-</body></html>`;
-
-  const blob=new Blob([html],{type:"text/html"});
-  const u=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=u;a.download="inspector_"+ts+".html";a.click();
-  URL.revokeObjectURL(u);
-  showToast("报告已导出");
+    const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+    const u=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=u;
+    a.download="inspector_"+ts+".html";
+    a.style.display="none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1000);
+    showToast("报告已导出");
+  } catch(e){
+    showToast("导出失败："+e.message,true);
+  }
 }
 
 // ════════════════════════════════════════════════
