@@ -1,4 +1,4 @@
-// inspector.js v1.3 — 新增内嵌JavaScript控制台
+// inspector.js v1.4 — 面板高度自由拖动，用户权限最大
 (function(){
 
 const ROOT_ID="inspector_root";
@@ -23,7 +23,9 @@ const THEME={
     consoleBg:"#1a1a1a",
     consoleText:"#f0f0f0",
     consoleInput:"#252526",
-    consoleBorder:"#333"
+    consoleBorder:"#333",
+    handleBg:"#e8edf5",
+    handleActive:"#d0d8f0"
   },
   dark:{
     bg:"#1e1e1e",bg2:"#252526",bg3:"#2d2d2d",
@@ -39,7 +41,9 @@ const THEME={
     consoleBg:"#0d0d0d",
     consoleText:"#f0f0f0",
     consoleInput:"#1a1a1a",
-    consoleBorder:"#222"
+    consoleBorder:"#222",
+    handleBg:"#2a2a2a",
+    handleActive:"#3a3a3a"
   }
 };
 let isDark=false,T=THEME.light;
@@ -94,8 +98,7 @@ function getElId(el){
 }
 
 function getAncestorChain(el){
-  const chain=[];
-  let node=el;
+  const chain=[];let node=el;
   while(node&&node.nodeType===1){
     chain.unshift(node);node=node.parentElement;
   }
@@ -368,7 +371,7 @@ function cycleGridSize(){
 }
 
 // ════════════════════════════════════════════════
-// 控制台核心：console拦截
+// 控制台核心
 // ════════════════════════════════════════════════
 const _consoleMethods={
   log:console.log,warn:console.warn,
@@ -376,13 +379,11 @@ const _consoleMethods={
   debug:console.debug
 };
 let consoleHooked=false;
-let consoleOutputEl=null; // 由buildConsoleTab赋值
+let consoleOutputEl=null;
 
 const CONSOLE_COLORS={
-  log:"#f0f0f0",warn:"#ffb74d",
-  error:"#ef5350",info:"#64b5f6",
-  debug:"#9e9e9e",ret:"#81c784",
-  retErr:"#ef5350"
+  log:"#f0f0f0",warn:"#ffb74d",error:"#ef5350",
+  info:"#64b5f6",debug:"#9e9e9e",ret:"#81c784",retErr:"#ef5350"
 };
 
 function hookConsole(){
@@ -391,12 +392,8 @@ function hookConsole(){
   ["log","warn","error","info","debug"].forEach(method=>{
     console[method]=function(...args){
       _consoleMethods[method].apply(console,args);
-      if(consoleOutputEl){
-        appendConsoleRow(
-          method,
-          args.map(serializeVal).join(" ")
-        );
-      }
+      if(consoleOutputEl)
+        appendConsoleRow(method,args.map(serializeVal).join(" "));
     };
   });
 }
@@ -412,8 +409,7 @@ function unhookConsole(){
 function serializeVal(val){
   if(val===undefined)return "undefined";
   if(val===null)return "null";
-  if(val instanceof Error)
-    return val.name+": "+val.message;
+  if(val instanceof Error)return val.name+": "+val.message;
   if(typeof val==="function")
     return "[Function: "+(val.name||"anonymous")+"]";
   if(typeof val==="object"){
@@ -432,54 +428,40 @@ function appendConsoleRow(type,text){
     "padding:4px 8px;border-bottom:1px solid #2a2a2a;"+
     "font-size:12px;line-height:1.5;word-break:break-all;"+
     "white-space:pre-wrap;font-family:monospace;"+
-    "color:"+( CONSOLE_COLORS[type]||"#f0f0f0")+";";
-
-  // 图标前缀
+    "color:"+(CONSOLE_COLORS[type]||"#f0f0f0")+";";
   const icons={
     log:"",warn:"⚠ ",error:"✘ ",
-    info:"ℹ ",debug:"◌ ",
-    ret:"← ",retErr:"✘ "
+    info:"ℹ ",debug:"◌ ",ret:"← ",retErr:"✘ "
   };
   row.textContent=(icons[type]||"")+text;
-
-  // 错误行加背景
-  if(type==="error"||type==="retErr"){
+  if(type==="error"||type==="retErr")
     row.style.background="rgba(239,83,80,.08)";
-  }
-  if(type==="warn"){
+  if(type==="warn")
     row.style.background="rgba(255,183,77,.06)";
-  }
-
   consoleOutputEl.appendChild(row);
   consoleOutputEl.scrollTop=consoleOutputEl.scrollHeight;
 }
 
-// 执行代码
 function execCode(code,lockedEl,hoveredEl){
-  // 注入便捷变量
   const $el=lockedEl||hoveredEl||null;
   const $0=$el;
   const $$=sel=>Array.from(document.querySelectorAll(sel));
   const $q=sel=>document.querySelector(sel);
-
   try{
-    // 使用Function避免严格模式限制
     const fn=new Function(
       "$el","$0","$$","$q",
       "\"use strict\";\nreturn ("+code+"\n)"
     );
     const result=fn($el,$0,$$,$q);
-    const str=serializeVal(result);
-    appendConsoleRow("ret",str);
-  } catch(e){
-    // 若加return失败，改为直接执行（语句模式）
+    appendConsoleRow("ret",serializeVal(result));
+  }catch(e){
     try{
       const fn2=new Function(
         "$el","$0","$$","$q",
         "\"use strict\";\n"+code
       );
       fn2($el,$0,$$,$q);
-    } catch(e2){
+    }catch(e2){
       appendConsoleRow("retErr",e2.message);
     }
   }
@@ -738,62 +720,141 @@ function renderDrawer(){
   });
 }
 
-// ── 主面板 ────────────────────────────────────
+// ════════════════════════════════════════════════
+// 主面板（高度完全由用户控制）
+// ════════════════════════════════════════════════
+const VH=window.innerHeight;
+const MIN_PANEL_H=100;
+const MAX_PANEL_H=Math.round(VH*0.93);
+let panelHeight=Math.round(VH*0.5);
+
 const panel=document.createElement("div");
 panel.style.cssText=
   "position:fixed;bottom:0;left:0;width:100%;"+
-  "display:flex;flex-direction:column;z-index:2147483647;";
+  "display:flex;flex-direction:column;z-index:2147483647;"+
+  "height:"+panelHeight+"px;";
 onTheme(()=>{
   panel.style.background=T.bg;
   panel.style.borderTop="2px solid "+T.panelBorder;
   panel.style.boxShadow="0 -4px 20px "+T.shadow;
 });
 
-let panelHeight=Math.round(window.innerHeight*0.5);
-panel.style.maxHeight=panelHeight+"px";
-
+// ── 拖动手柄（44px高，整条可拖，双击切换全屏）─
 const dragHandle=document.createElement("div");
 dragHandle.style.cssText=
-  "height:20px;display:flex;align-items:center;"+
-  "justify-content:center;cursor:ns-resize;flex-shrink:0;";
+  "height:44px;display:flex;align-items:center;"+
+  "justify-content:center;cursor:ns-resize;flex-shrink:0;"+
+  "user-select:none;touch-action:none;position:relative;";
 onTheme(()=>{
-  dragHandle.style.background=T.bg3;
+  dragHandle.style.background=T.handleBg;
   dragHandle.style.borderBottom="1px solid "+T.border2;
 });
-const dragBar=document.createElement("div");
-dragBar.style.cssText="width:40px;height:4px;border-radius:2px;";
-onTheme(()=>dragBar.style.background=T.text2);
-dragHandle.appendChild(dragBar);
 
+// 三横线图标
+const dragIcon=document.createElement("div");
+dragIcon.style.cssText=
+  "display:flex;flex-direction:column;gap:5px;"+
+  "pointer-events:none;";
+[32,22,32].forEach(w=>{
+  const bar=document.createElement("div");
+  bar.style.cssText="height:3px;border-radius:2px;width:"+w+"px;";
+  onTheme(()=>bar.style.background=T.text2);
+  dragIcon.appendChild(bar);
+});
+
+// 高度提示标签
+const heightTip=document.createElement("span");
+heightTip.style.cssText=
+  "position:absolute;right:12px;font-size:11px;"+
+  "pointer-events:none;opacity:0;transition:opacity .2s;";
+onTheme(()=>heightTip.style.color=T.text2);
+
+dragHandle.appendChild(dragIcon);
+dragHandle.appendChild(heightTip);
+
+// 拖动状态
 let panelDragging=false,panelStartY=0,panelStartH=0;
-function onPanelDragStart(y){
-  panelDragging=true;panelStartY=y;panelStartH=panelHeight;
+let lastTapTime=0;
+
+function setPanelHeight(h){
+  panelHeight=Math.max(MIN_PANEL_H,Math.min(MAX_PANEL_H,h));
+  panel.style.height=panelHeight+"px";
+  heightTip.textContent=panelHeight+"px";
 }
+
+function onPanelDragStart(y){
+  panelDragging=true;
+  panelStartY=y;
+  panelStartH=panelHeight;
+  heightTip.style.opacity="1";
+  onTheme(()=>dragHandle.style.background=T.handleActive);
+}
+
 function onPanelDragMove(y){
   if(!panelDragging)return;
-  panelHeight=Math.max(
-    Math.round(window.innerHeight*0.2),
-    Math.min(Math.round(window.innerHeight*0.85),
-    panelStartH+(panelStartY-y)));
-  panel.style.maxHeight=panelHeight+"px";
+  setPanelHeight(panelStartH+(panelStartY-y));
 }
+
+function onPanelDragEnd(){
+  if(!panelDragging)return;
+  panelDragging=false;
+  heightTip.style.opacity="0";
+  onTheme(()=>dragHandle.style.background=T.handleBg);
+}
+
+// 双击手柄：在50%和全屏之间切换
+function onHandleDblClick(){
+  const half=Math.round(VH*0.5);
+  const full=MAX_PANEL_H;
+  setPanelHeight(panelHeight<full-20?full:half);
+}
+
+// 触控双击
+function onHandleTouchEnd(e){
+  const now=Date.now();
+  if(now-lastTapTime<300){
+    onHandleDblClick();lastTapTime=0;
+  } else {
+    lastTapTime=now;
+  }
+}
+
 dragHandle.addEventListener("mousedown",e=>{
-  onPanelDragStart(e.clientY);e.preventDefault();
+  onPanelDragStart(e.clientY);
+  e.preventDefault();e.stopPropagation();
+});
+dragHandle.addEventListener("dblclick",e=>{
+  onHandleDblClick();e.stopPropagation();
 });
 dragHandle.addEventListener("touchstart",e=>{
-  onPanelDragStart(e.touches[0].clientY);e.preventDefault();
-},{passive:false});
-document.addEventListener("mousemove",e=>{
-  if(panelDragging)onPanelDragMove(e.clientY);
+  onPanelDragStart(e.touches[0].clientY);
+  e.stopPropagation();
+},{passive:true});
+dragHandle.addEventListener("touchend",e=>{
+  onPanelDragEnd();
+  onHandleTouchEnd(e);
+  e.stopPropagation();
 });
+
+// document级别拖动事件
+document.addEventListener("mousemove",e=>{
+  if(panelDragging){
+    onPanelDragMove(e.clientY);
+    e.preventDefault();
+  }
+});
+document.addEventListener("mouseup",onPanelDragEnd);
 document.addEventListener("touchmove",e=>{
   if(panelDragging){
-    onPanelDragMove(e.touches[0].clientY);e.preventDefault();
+    onPanelDragMove(e.touches[0].clientY);
+    e.preventDefault();
   }
 },{passive:false});
-document.addEventListener("mouseup",()=>panelDragging=false);
-document.addEventListener("touchend",()=>panelDragging=false);
+document.addEventListener("touchend",e=>{
+  if(panelDragging)onPanelDragEnd();
+});
 
+// ── 元素标识行 ────────────────────────────────
 const elIdRow=document.createElement("div");
 elIdRow.style.cssText=
   "padding:6px 12px;font-size:12px;font-weight:bold;"+
@@ -804,6 +865,7 @@ onTheme(()=>{
 });
 elIdRow.textContent="请悬停到页面元素上…";
 
+// ── 面包屑 ────────────────────────────────────
 const breadcrumb=document.createElement("div");
 breadcrumb.style.cssText=
   "padding:5px 12px;font-size:11px;overflow-x:auto;"+
@@ -815,9 +877,10 @@ onTheme(()=>{
   breadcrumb.style.color=T.text2;
 });
 
-// ── 标签页（新增"控制台"）────────────────────
+// ── 标签页 ────────────────────────────────────
 const tabBar=document.createElement("div");
-tabBar.style.cssText="display:flex;flex-shrink:0;overflow-x:auto;";
+tabBar.style.cssText=
+  "display:flex;flex-shrink:0;overflow-x:auto;";
 onTheme(()=>{
   tabBar.style.borderBottom="1px solid "+T.border2;
   tabBar.style.background=T.bg;
@@ -834,13 +897,16 @@ TABS.forEach(name=>{
     "cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;";
   btn.onclick=()=>switchTab(name);
   tabBtns[name]=btn;tabBar.appendChild(btn);
+
   const pane=document.createElement("div");
+  // 关键：所有标签页统一用 flex:1 + overflow-y:auto
+  // 不依赖内容高度撑开面板
   pane.style.cssText=
-    "flex:1;overflow-y:auto;display:none;";
-  // 控制台标签不加padding，由内部自己管理
+    "flex:1;overflow-y:auto;display:none;min-height:0;";
   if(name!=="控制台") pane.style.padding="10px 12px";
-  onTheme(()=>pane.style.background=
-    name==="控制台"?T.consoleBg:T.bg);
+  onTheme(()=>{
+    pane.style.background=name==="控制台"?T.consoleBg:T.bg;
+  });
   tabPanels[name]=pane;
 });
 
@@ -854,19 +920,19 @@ function switchTab(name){
     tabBtns[n].style.background=T.bg;
     tabBtns[n].style.color=active?T.text3:T.text2;
     tabPanels[n].style.display=active?"flex":"none";
-    if(n==="控制台"&&active){
+    if(n==="控制台"&&active)
       tabPanels[n].style.flexDirection="column";
-    }
   });
   currentTab=name;
-  // 切换到控制台时启动hook，离开时不unhook（保持输出）
-  if(name==="控制台") hookConsole();
+  if(name==="控制台")hookConsole();
 }
 switchTab("尺寸");
 
+// 内容区：flex:1 + overflow:hidden，高度由 panel.height 决定
 const contentArea=document.createElement("div");
 contentArea.style.cssText=
-  "flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;";
+  "flex:1;display:flex;flex-direction:column;"+
+  "overflow:hidden;min-height:0;";
 contentArea.appendChild(tabBar);
 TABS.forEach(n=>contentArea.appendChild(tabPanels[n]));
 
@@ -901,6 +967,7 @@ const actExport =mkAct("📄 导出",exportReport);
 [actParent,actPrev,actNext,actChildren,actMeasure,actExport]
   .forEach(b=>actionBar.appendChild(b));
 
+// 组装面板
 panel.appendChild(dragHandle);
 panel.appendChild(elIdRow);
 panel.appendChild(breadcrumb);
@@ -920,15 +987,13 @@ function buildConsoleTab(){
   const pane=tabPanels["控制台"];
   pane.innerHTML="";
 
-  // 输出区
   const output=document.createElement("div");
   output.style.cssText=
     "flex:1;overflow-y:auto;padding:6px 0;"+
-    "font-family:monospace;font-size:12px;";
+    "font-family:monospace;font-size:12px;min-height:0;";
   onTheme(()=>output.style.background=T.consoleBg);
   consoleOutputEl=output;
 
-  // 欢迎信息
   const welcome=document.createElement("div");
   welcome.style.cssText=
     "padding:6px 8px;font-size:11px;"+
@@ -940,7 +1005,6 @@ function buildConsoleTab(){
     "<span style='color:#81c784'>$q</span> = querySelector";
   output.appendChild(welcome);
 
-  // 工具栏
   const toolbar=document.createElement("div");
   toolbar.style.cssText=
     "display:flex;gap:6px;padding:4px 8px;flex-shrink:0;"+
@@ -960,13 +1024,13 @@ function buildConsoleTab(){
     b.onclick=fn;return b;
   }
 
-  const clearBtn=mkConsoleBtn("清空",()=>{
+  toolbar.appendChild(mkConsoleBtn("清空",()=>{
     output.innerHTML="";output.appendChild(welcome.cloneNode(true));
-  });
-  const copyBtn=mkConsoleBtn("复制全部",()=>{
+  }));
+  toolbar.appendChild(mkConsoleBtn("复制全部",()=>{
     copyText(output.innerText);showToast("已复制");
-  });
-  const elBtn=mkConsoleBtn("$el信息",()=>{
+  }));
+  toolbar.appendChild(mkConsoleBtn("$el信息",()=>{
     const el=lockedEl||hoveredEl;
     if(!el){appendConsoleRow("warn","尚未锁定任何元素");return;}
     appendConsoleRow("info",
@@ -975,13 +1039,8 @@ function buildConsoleTab(){
       "class: "+(el.className||"无")+"\n"+
       "选择器: "+getCssSelector(el)
     );
-  });
+  }));
 
-  toolbar.appendChild(clearBtn);
-  toolbar.appendChild(copyBtn);
-  toolbar.appendChild(elBtn);
-
-  // 输入区
   const inputWrap=document.createElement("div");
   inputWrap.style.cssText=
     "display:flex;align-items:flex-end;gap:0;"+
@@ -1006,7 +1065,6 @@ function buildConsoleTab(){
     "font-size:13px;font-family:monospace;line-height:1.5;"+
     "max-height:120px;overflow-y:auto;";
 
-  // 自动调整高度
   input.addEventListener("input",()=>{
     input.style.height="auto";
     input.style.height=Math.min(input.scrollHeight,120)+"px";
@@ -1018,15 +1076,12 @@ function buildConsoleTab(){
     "padding:8px 14px;background:#0078ff;color:#fff;"+
     "border:none;font-size:13px;cursor:pointer;"+
     "align-self:flex-end;flex-shrink:0;";
-  runBtn.onclick=()=>runInput();
 
-  // 命令历史
   let cmdHistory=[],histIdx=-1;
 
   function runInput(){
     const code=input.value.trim();
     if(!code)return;
-    // 显示输入的命令
     const cmdRow=document.createElement("div");
     cmdRow.style.cssText=
       "padding:4px 8px;color:#aaa;font-size:12px;"+
@@ -1035,28 +1090,24 @@ function buildConsoleTab(){
     cmdRow.textContent="> "+code;
     output.appendChild(cmdRow);
     output.scrollTop=output.scrollHeight;
-
-    // 记录历史
     if(cmdHistory[0]!==code){
       cmdHistory.unshift(code);
-      if(cmdHistory.length>50) cmdHistory.pop();
+      if(cmdHistory.length>50)cmdHistory.pop();
     }
     histIdx=-1;
-
-    // 执行
     execCode(code,lockedEl,hoveredEl);
-
-    // 清空输入
     input.value="";
     input.style.height="auto";
     input.focus();
   }
 
+  runBtn.onclick=runInput;
+
   input.addEventListener("keydown",e=>{
     if(e.key==="Enter"&&!e.shiftKey){
       e.preventDefault();runInput();return;
     }
-    if(e.key==="ArrowUp"&&input.value.indexOf("\n")===-1){
+    if(e.key==="ArrowUp"&&!input.value.includes("\n")){
       e.preventDefault();
       histIdx=Math.min(histIdx+1,cmdHistory.length-1);
       input.value=cmdHistory[histIdx]||"";
@@ -1064,7 +1115,7 @@ function buildConsoleTab(){
       input.style.height=Math.min(input.scrollHeight,120)+"px";
       return;
     }
-    if(e.key==="ArrowDown"&&input.value.indexOf("\n")===-1){
+    if(e.key==="ArrowDown"&&!input.value.includes("\n")){
       e.preventDefault();
       histIdx=Math.max(histIdx-1,-1);
       input.value=histIdx>=0?cmdHistory[histIdx]:"";
@@ -1074,7 +1125,7 @@ function buildConsoleTab(){
     }
   });
 
-  // 阻止控制台区域的事件冒泡（避免触发inspector的锁定逻辑）
+  // 控制台区域阻止事件冒泡
   [output,inputWrap,toolbar].forEach(el=>{
     el.addEventListener("click",e=>e.stopPropagation());
     el.addEventListener("touchend",e=>e.stopPropagation());
@@ -1377,17 +1428,20 @@ function renderA11y(el){
       "padding:8px 10px;border-radius:6px;margin-bottom:6px;";
     onTheme(()=>row.style.background=T.bg2);
     const head=document.createElement("div");
-    head.style.cssText="display:flex;align-items:center;gap:8px;margin-bottom:3px;";
+    head.style.cssText=
+      "display:flex;align-items:center;gap:8px;margin-bottom:3px;";
     const icon=document.createElement("span");
     icon.textContent=item.pass?"✔":"✗";
-    icon.style.cssText="font-weight:bold;color:"+(item.pass?"#4caf50":"#e53935")+";";
+    icon.style.cssText=
+      "font-weight:bold;color:"+(item.pass?"#4caf50":"#e53935")+";";
     const label=document.createElement("span");
     label.style.cssText="font-size:13px;font-weight:bold;";
     onTheme(()=>label.style.color=T.text);
     label.textContent=item.label;
     head.appendChild(icon);head.appendChild(label);
     const val=document.createElement("div");
-    val.style.cssText="font-size:12px;margin-left:22px;word-break:break-all;";
+    val.style.cssText=
+      "font-size:12px;margin-left:22px;word-break:break-all;";
     onTheme(()=>val.style.color=T.text2);
     val.textContent=item.val;
     row.appendChild(head);row.appendChild(val);
@@ -1416,7 +1470,7 @@ function renderCompare(){
   const hint=document.createElement("div");
   hint.style.cssText="font-size:12px;margin-bottom:10px;";
   onTheme(()=>hint.style.color=T.text2);
-  hint.textContent="选��元素后点击设为A或B，对比差异";
+  hint.textContent="选中元素后点击设为A或B，对比差异";
   pane.appendChild(hint);
   const selRow=document.createElement("div");
   selRow.style.cssText="display:flex;gap:8px;margin-bottom:10px;";
@@ -1448,7 +1502,8 @@ function renderCompare(){
   const dimA=getDimensions(compareElA),dimB=getDimensions(compareElB);
   function mkCmpTable(title,rows){
     const h=document.createElement("div");
-    h.style.cssText="font-weight:bold;font-size:12px;margin-bottom:6px;margin-top:10px;";
+    h.style.cssText=
+      "font-weight:bold;font-size:12px;margin-bottom:6px;margin-top:10px;";
     onTheme(()=>h.style.color=T.text);h.textContent=title;pane.appendChild(h);
     const table=document.createElement("table");
     table.style.cssText=
@@ -1460,7 +1515,10 @@ function renderCompare(){
         "padding:4px 6px;text-align:left;font-size:11px;"+
         "background:"+(i===1?"rgba(0,120,255,.1)":
           i===2?"rgba(126,87,194,.1)":"none")+";";
-      onTheme(()=>{th.style.color=T.text2;th.style.borderBottom="1px solid "+T.border;});
+      onTheme(()=>{
+        th.style.color=T.text2;
+        th.style.borderBottom="1px solid "+T.border;
+      });
       th.textContent=h;thead.appendChild(th);
     });
     table.appendChild(thead);
@@ -1489,7 +1547,8 @@ function renderCompare(){
     ["left",dimA.left+"px",dimB.left+"px"],
   ]);
   const mapB=new Map(stylesB);
-  mkCmpTable("样式对比",stylesA.map(([p,va])=>[p,va,mapB.get(p)||"-"]));
+  mkCmpTable("样式对比",
+    stylesA.map(([p,va])=>[p,va,mapB.get(p)||"-"]));
 }
 
 // ════════════════════════════════════════════════
@@ -1583,7 +1642,8 @@ function drawMeasureLines(){
   const cxA=rA.left+rA.width/2,cyA=rA.top+rA.height/2;
   const cxB=rB.left+rB.width/2,cyB=rB.top+rB.height/2;
   const dist=Math.round(Math.sqrt((cxB-cxA)**2+(cyB-cyA)**2));
-  drawLine(cxA,cyA,cxB,cyB,"rgba(100,100,255,.6)","中心距"+dist+"px",true);
+  drawLine(cxA,cyA,cxB,cyB,
+    "rgba(100,100,255,.6)","中心距"+dist+"px",true);
   const info=document.createElement("div");
   info.style.cssText=
     "position:fixed;top:50px;right:10px;background:rgba(0,0,0,.82);"+
@@ -1661,8 +1721,7 @@ function exportReport(){
       w.document.open();w.document.write(html);w.document.close();
       showToast("报告已在新标签页打开");
     } else {
-      const uri="data:text/html;charset=utf-8,"+
-        encodeURIComponent(html);
+      const uri="data:text/html;charset=utf-8,"+encodeURIComponent(html);
       const a=document.createElement("a");
       a.href=uri;a.download="inspector_"+ts+".html";
       a.style.display="none";
@@ -1755,8 +1814,6 @@ function navigateTo(dir){
 function toggleTheme(){
   isDark=!isDark;
   themeBtn.textContent=isDark?"☀️":"🌙";
-  // 控制台标签背景同步
-  tabPanels["控制台"].style.background=T.consoleBg;
   applyTheme();
 }
 
@@ -1799,7 +1856,15 @@ document.addEventListener("click",onClick,true);
 document.addEventListener("touchmove",onTouchMove,
   {capture:true,passive:true});
 document.addEventListener("touchend",onTouchEnd,true);
-window.addEventListener("resize",()=>{if(gridOn)drawGrid();});
+
+window.addEventListener("resize",()=>{
+  if(gridOn)drawGrid();
+  const newMax=Math.round(window.innerHeight*0.93);
+  if(panelHeight>newMax){
+    panelHeight=newMax;
+    panel.style.height=panelHeight+"px";
+  }
+});
 
 // ════════════════════════════════════════════════
 // 退出清理
@@ -1810,7 +1875,9 @@ function cleanup(){
   document.removeEventListener("click",onClick,true);
   document.removeEventListener("touchmove",onTouchMove,true);
   document.removeEventListener("touchend",onTouchEnd,true);
-  clearHighlight();overlayRoot.remove();root.remove();
+  clearHighlight();
+  overlayRoot.remove();
+  root.remove();
 }
 
 // 初始化
